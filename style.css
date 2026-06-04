@@ -1,0 +1,98 @@
+body {
+margin: 0;
+font-family: sans-serif;
+background: #f5f5f5;
+}
+
+/* ヘッダー */
+header {
+background: #222;
+color: white;
+padding: 10px;
+text-align: center;
+}
+
+nav a {
+color: white;
+margin: 0 10px;
+text-decoration: none;
+}
+
+/* メイン */
+main {
+padding: 15px;
+}
+
+/* ヒーロー */
+.hero {
+text-align: center;
+padding: 30px 10px;
+background: #fff;
+border-radius: 10px;
+}
+
+/* お知らせ */
+.news {
+margin-top: 20px;
+background: #fff;
+padding: 15px;
+border-radius: 10px;
+}
+
+/* ボタン */
+.btn {
+display: inline-block;
+margin-top: 20px;
+padding: 10px 20px;
+background: #007BFF;
+color: white;
+border-radius: 5px;
+text-decoration: none;
+}
+
+/* フィルター */
+.filter {
+margin-bottom: 15px;
+}
+
+.filter button {
+margin: 5px;
+padding: 8px 12px;
+}
+
+/* ツール一覧 */
+.tool-list {
+display: grid;
+grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+gap: 10px;
+}
+
+.tool-card {
+background: white;
+padding: 15px;
+border-radius: 10px;
+}
+
+/* フッター */
+footer {
+text-align: center;
+padding: 10px;
+margin-top: 20px;
+}
+
+/* スマホ最適化 */
+@media (max-width: 600px) {
+.hero {
+font-size: 14px;
+}
+}
+
+.pagination {
+text-align: center;
+margin-top: 20px;
+}
+
+.pagination button {
+margin: 3px;
+padding: 6px 10px;
+}
