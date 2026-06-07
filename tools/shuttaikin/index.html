@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>スマート出退勤管理</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome (アイコン用) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* カスタムスクロールバー */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col font-sans">
+
+    <!-- ヘッダー -->
+    <header class="bg-indigo-600 text-white shadow-md">
+        <p><a href="../index.html">一覧へ戻る</a></p>
+        <div class="max-w-6xl mx-auto px-4 py-4 flex justify-between items-center">
+            <div class="flex items-center space-x-3">
+                <i class="fa-solid fa-business-time text-2xl"></i>
+                <h1 class="text-xl font-bold tracking-wider">SmartWork タイムカード</h1>
+            </div>
+            <div class="text-sm bg-indigo-700 px-3 py-1.5 rounded-full font-medium" id="current-user-badge">
+                <i class="fa-regular fa-user mr-1.5"></i>ゲストユーザー
+            </div>
+        </div>
+    </header>
+
+    <!-- メインコンテンツ -->
+    <main class="flex-grow max-w-6xl w-full mx-auto px-4 py-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        <!-- 左カラム：時計と打刻コントロール -->
+        <div class="lg:col-span-1 space-y-6">
+            
+            <!-- デジタル時計カード -->
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 text-center relative overflow-hidden">
+                <div class="absolute top-0 left-0 w-full h-1.5 bg-indigo-500"></div>
+                <div class="text-slate-400 text-sm font-semibold mb-1" id="realtime-date">----年--月--日 (水)</div>
+                <div class="text-4xl md:text-5xl font-mono font-bold text-slate-800 tracking-tight my-2" id="realtime-clock">00:00:00</div>
+                <div class="text-xs text-emerald-600 font-semibold bg-emerald-50 inline-block px-2.5 py-1 rounded-full" id="status-badge">
+                    <span class="inline-block w-2 h-2 rounded-full bg-emerald-500 mr-1 animate-pulse"></span>未打刻 (本日)
+                </div>
+            </div>
+
+            <!-- 操作パネル -->
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 space-y-4">
+                <h2 class="text-lg font-bold text-slate-700 border-b border-slate-100 pb-3 flex items-center">
+                    <i class="fa-solid fa-fingerprint text-indigo-500 mr-2"></i>本日の打刻
+                </h2>
+                
+                <div class="grid grid-cols-2 gap-3">
+                    <!-- 出勤ボタン -->
+                    <button id="btn-clock-in" onclick="stamp('clockIn')" class="flex flex-col items-center justify-center p-4 bg-indigo-50 text-indigo-700 rounded-xl hover:bg-indigo-100 transition duration-200 border border-indigo-100 group">
+                        <i class="fa-solid fa-arrow-right-to-bracket text-2xl mb-2 group-hover:scale-110 transition duration-200"></i>
+                        <span class="text-sm font-bold">出勤</span>
+                        <span class="text-xs text-indigo-500/80 mt-1 font-mono" id="time-clock-in">--:--</span>
+                    </button>
+                    
+                    <!-- 退勤ボタン -->
+                    <button id="btn-clock-out" onclick="stamp('clockOut')" class="flex flex-col items-center justify-center p-4 bg-rose-50 text-rose-700 rounded-xl hover:bg-rose-100 transition duration-200 border border-rose-100 group disabled:opacity-50" disabled>
+                        <i class="fa-solid fa-arrow-right-from-bracket text-2xl mb-2 group-hover:scale-110 transition duration-200"></i>
+                        <span class="text-sm font-bold">退勤</span>
+                        <span class="text-xs text-rose-500/80 mt-1 font-mono" id="time-clock-out">--:--</span>
+                    </button>
+
+                    <!-- 休憩開始ボタン -->
+                    <button id="btn-break-start" onclick="stamp('breakStart')" class="flex flex-col items-center justify-center p-4 bg-amber-50 text-amber-700 rounded-xl hover:bg-amber-100 transition duration-200 border border-amber-100 group disabled:opacity-50" disabled>
+                        <i class="fa-solid fa-mug-hot text-2xl mb-2 group-hover:scale-110 transition duration-200"></i>
+                        <span class="text-sm font-bold">休憩入</span>
+                        <span class="text-xs text-amber-500/80 mt-1 font-mono" id="time-break-start">--:--</span>
+                    </button>
+
+                    <!-- 休憩終了ボタン -->
+                    <button id="btn-break-end" onclick="stamp('breakEnd')" class="flex flex-col items-center justify-center p-4 bg-emerald-50 text-emerald-700 rounded-xl hover:bg-emerald-100 transition duration-200 border border-emerald-100 group disabled:opacity-50" disabled>
+                        <i class="fa-solid fa-play text-2xl mb-2 group-hover:scale-110 transition duration-200"></i>
+                        <span class="text-sm font-bold">休憩戻</span>
+                        <span class="text-xs text-emerald-500/80 mt-1 font-mono" id="time-break-end">--:--</span>
+                    </button>
+                </div>
+
+                <!-- 備考・メモ入力 -->
+                <div class="mt-4 pt-2">
+                    <label for="stamp-memo" class="block text-xs font-semibold text-slate-500 uppercase mb-1">本日のメモ / 業務内容</label>
+                    <textarea id="stamp-memo" rows="2" placeholder="本日の引き継ぎやメモを入力..." class="w-full text-sm p-2.5 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition duration-200 resize-none" oninput="saveCurrentMemo()"></textarea>
+                </div>
+            </div>
+
+            <!-- クイック設定/統計概要 -->
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+                <h2 class="text-lg font-bold text-slate-700 border-b border-slate-100 pb-3 mb-4 flex items-center">
+                    <i class="fa-solid fa-chart-pie text-indigo-500 mr-2"></i>今月の統計情報
+                </h2>
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="bg-slate-50 p-3.5 rounded-xl text-center">
+                        <span class="text-xs text-slate-500 block mb-1">出勤日数</span>
+                        <span class="text-xl font-bold text-indigo-600 font-mono" id="stats-days">0 <span class="text-xs text-slate-500">日</span></span>
+                    </div>
+                    <div class="bg-slate-50 p-3.5 rounded-xl text-center">
+                        <span class="text-xs text-slate-500 block mb-1">総労働時間</span>
+                        <span class="text-xl font-bold text-slate-700 font-mono" id="stats-hours">0h 00m</span>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- 右カラム：履歴リストと管理機能 -->
+        <div class="lg:col-span-2 space-y-6">
+            
+            <!-- 履歴一覧カード -->
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 flex flex-col h-full min-h-[500px]">
+                
+                <!-- フィルター＆操作ヘッダー -->
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between border-b border-slate-100 pb-4 gap-4">
+                    <div>
+                        <h2 class="text-lg font-bold text-slate-700 flex items-center">
+                            <i class="fa-solid fa-list-check text-indigo-500 mr-2"></i>勤務履歴
+                        </h2>
+                    </div>
+                    
+                    <div class="flex flex-wrap items-center gap-2">
+                        <!-- 月選択フィルター -->
+                        <input type="month" id="filter-month" class="text-sm border border-slate-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500" onchange="renderHistory()">
+                        
+                        <!-- CSVエクスポート -->
+                        <button onclick="exportToCSV()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold px-3 py-1.5 rounded-lg flex items-center transition duration-150">
+                            <i class="fa-solid fa-file-csv mr-1.5"></i>CSV出力
+                        </button>
+
+                        <!-- 手動追加モーダル起動 -->
+                        <button onclick="openAddRecordModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold px-3 py-1.5 rounded-lg flex items-center transition duration-150">
+                            <i class="fa-solid fa-plus mr-1.5"></i>手動追加
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 履歴テーブル（スクロール可能） -->
+                <div class="overflow-x-auto flex-grow mt-4">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-slate-50 text-slate-500 text-xs font-bold uppercase border-b border-slate-200">
+                                <th class="py-3 px-4">日付</th>
+                                <th class="py-3 px-4">出勤 / 退勤</th>
+                                <th class="py-3 px-4">休憩時間</th>
+                                <th class="py-3 px-4">実労働</th>
+                                <th class="py-3 px-4">備考</th>
+                                <th class="py-3 px-4 text-center">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="history-tbody" class="divide-y divide-slate-100 text-sm">
+                            <!-- JSによって行が挿入されます -->
+                        </tbody>
+                    </table>
+                    
+                    <!-- データなしの表示 -->
+                    <div id="no-data-view" class="hidden py-12 text-center text-slate-400">
+                        <i class="fa-solid fa-folder-open text-4xl mb-3 text-slate-300"></i>
+                        <p class="text-sm">選択した月の勤務データはありません。</p>
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+
+    </main>
+
+    <!-- フッター -->
+    <footer class="bg-white border-t border-slate-200 py-4 mt-auto">
+        <div class="max-w-6xl mx-auto px-4 text-center text-xs text-slate-400">
+            &copy; 2026 SmartWork タイムカード. All rights reserved. (ローカルブラウザデータ保存)
+        </div>
+    </footer>
+
+    <!-- ==================== モーダル：勤務実績の追加/編集 ==================== -->
+    <div id="record-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center hidden">
+        <div class="bg-white rounded-2xl max-w-md w-full mx-4 shadow-xl border border-slate-100 overflow-hidden transform transition-all">
+            <div class="bg-indigo-600 text-white p-4 flex justify-between items-center">
+                <h3 id="modal-title" class="font-bold">勤務実績の編集</h3>
+                <button onclick="closeRecordModal()" class="text-white/80 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <form id="record-form" onsubmit="saveRecord(event)" class="p-6 space-y-4">
+                <input type="hidden" id="modal-record-date">
+                <input type="hidden" id="modal-mode" value="add"> <!-- 'add' or 'edit' -->
+                
+                <div>
+                    <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">日付</label>
+                    <input type="date" id="modal-date" required class="w-full text-sm p-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">出勤時間</label>
+                        <input type="time" id="modal-clock-in" required class="w-full text-sm p-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">退勤時間</label>
+                        <input type="time" id="modal-clock-out" class="w-full text-sm p-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">休憩開始</label>
+                        <input type="time" id="modal-break-start" class="w-full text-sm p-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">休憩終了</label>
+                        <input type="time" id="modal-break-end" class="w-full text-sm p-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">メモ / 備考</label>
+                    <textarea id="modal-memo" rows="2" placeholder="特記事項があれば入力" class="w-full text-sm p-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"></textarea>
+                </div>
+
+                <div class="flex justify-end space-x-3 pt-4 border-t border-slate-100">
+                    <button type="button" onclick="closeRecordModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-semibold rounded-lg transition">キャンセル</button>
+                    <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-lg shadow-sm transition">保存する</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ==================== 通知トースト ==================== -->
+    <div id="toast" class="fixed bottom-5 right-5 bg-slate-800 text-white text-sm px-4 py-3 rounded-xl shadow-lg flex items-center space-x-2 transform translate-y-20 opacity-0 transition duration-300 z-50">
+        <span id="toast-icon"></span>
+        <span id="toast-message">メッセージ</span>
+    </div>
+
+    <!-- ==================== アプリケーションスクリプト ==================== -->
+    <script>
+        // 日付・時間ユーティリティ
+        const dayOfWeekStr = ["日", "月", "火", "水", "木", "金", "土"];
+        
+        // 状態保持（LocalStorageを使用）
+        let attendanceData = JSON.parse(localStorage.getItem('attendance_records')) || {};
+        // 本日の日付キー取得 (例: "2026-06-01")
+        const getTodayKey = () => {
+            const now = new Date();
+            return now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
+        };
+
+        // 時計初期化
+        function updateClock() {
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const date = String(now.getDate()).padStart(2, '0');
+            const day = dayOfWeekStr[now.getDay()];
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const seconds = String(now.getSeconds()).padStart(2, '0');
+
+            document.getElementById('realtime-date').innerText = `${year}年${month}月${date}日 (${day})`;
+            document.getElementById('realtime-clock').innerText = `${hours}:${minutes}:${seconds}`;
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+
+        // ページロード時の初期化
+        window.addEventListener('DOMContentLoaded', () => {
+            // 月フィルターの初期値を今月に設定
+            const now = new Date();
+            const currentYearMonth = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+            document.getElementById('filter-month').value = currentYearMonth;
+            
+            updateControlPanel();
+            renderHistory();
+        });
+
+        // 状態保存処理
+        function saveState() {
+            localStorage.setItem('attendance_records', JSON.stringify(attendanceData));
+            updateControlPanel();
+            renderHistory();
+        }
+
+        // 打刻ボタンコントロールの状態更新
+        function updateControlPanel() {
+            const today = getTodayKey();
+            const record = attendanceData[today] || {};
+
+            // 打刻時間の表示要素
+            document.getElementById('time-clock-in').innerText = record.clockIn ? record.clockIn : '--:--';
+            document.getElementById('time-clock-out').innerText = record.clockOut ? record.clockOut : '--:--';
+            document.getElementById('time-break-start').innerText = record.breakStart ? record.breakStart : '--:--';
+            document.getElementById('time-break-end').innerText = record.breakEnd ? record.breakEnd : '--:--';
+            document.getElementById('stamp-memo').value = record.memo || '';
+
+            // ボタン活性・非活性制御のロジック
+            const btnIn = document.getElementById('btn-clock-in');
+            const btnOut = document.getElementById('btn-clock-out');
+            const btnBStart = document.getElementById('btn-break-start');
+            const btnBEnd = document.getElementById('btn-break-end');
+            const badge = document.getElementById('status-badge');
+
+            // デフォルト初期化
+            btnIn.disabled = false;
+            btnOut.disabled = true;
+            btnBStart.disabled = true;
+            btnBEnd.disabled = true;
+            badge.className = "text-xs text-slate-500 font-semibold bg-slate-100 inline-block px-2.5 py-1 rounded-full";
+            badge.innerHTML = `<span class="inline-block w-2 h-2 rounded-full bg-slate-400 mr-1"></span>未出勤`;
+
+            if (record.clockIn) {
+                // 出勤済み
+                btnIn.disabled = true;
+                btnOut.disabled = false;
+                badge.className = "text-xs text-indigo-600 font-semibold bg-indigo-50 inline-block px-2.5 py-1 rounded-full";
+                badge.innerHTML = `<span class="inline-block w-2 h-2 rounded-full bg-indigo-500 mr-1 animate-pulse"></span>勤務中`;
+
+                if (!record.breakStart) {
+                    // 休憩していない
+                    btnBStart.disabled = false;
+                    btnBEnd.disabled = true;
+                } else if (record.breakStart && !record.breakEnd) {
+                    // 休憩中
+                    btnBStart.disabled = true;
+                    btnBEnd.disabled = false;
+                    btnOut.disabled = true; // 休憩中は退勤不可
+                    badge.className = "text-xs text-amber-600 font-semibold bg-amber-50 inline-block px-2.5 py-1 rounded-full";
+                    badge.innerHTML = `<span class="inline-block w-2 h-2 rounded-full bg-amber-500 mr-1 animate-pulse"></span>休憩中`;
+                } else if (record.breakStart && record.breakEnd) {
+                    // 休憩戻り済み
+                    btnBStart.disabled = true; // 1度のみ休憩対応とする
+                    btnBEnd.disabled = true;
+                }
+            }
+
+            if (record.clockOut) {
+                // 退勤済み
+                btnIn.disabled = true;
+                btnOut.disabled = true;
+                btnBStart.disabled = true;
+                btnBEnd.disabled = true;
+                badge.className = "text-xs text-emerald-600 font-semibold bg-emerald-50 inline-block px-2.5 py-1 rounded-full";
+                badge.innerHTML = `<span class="inline-block w-2 h-2 rounded-full bg-emerald-500 mr-1"></span>業務終了`;
+            }
+        }
+
+        // 打刻アクション実行
+        function stamp(type) {
+            const today = getTodayKey();
+            if (!attendanceData[today]) {
+                attendanceData[today] = {
+                    date: today,
+                    clockIn: '',
+                    clockOut: '',
+                    breakStart: '',
+                    breakEnd: '',
+                    memo: ''
+                };
+            }
+
+            const now = new Date();
+            const timeStr = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+
+            attendanceData[today][type] = timeStr;
+            saveState();
+
+            let actionName = "";
+            switch(type) {
+                case 'clockIn': actionName = "出勤"; break;
+                case 'clockOut': actionName = "退勤"; break;
+                case 'breakStart': actionName = "休憩開始"; break;
+                case 'breakEnd': actionName = "休憩終了"; break;
+            }
+            showToast(`<i class="fa-solid fa-circle-check"></i>`, `${actionName}打刻しました (${timeStr})`);
+        }
+
+        // 本日のメモを即時保存
+        function saveCurrentMemo() {
+            const today = getTodayKey();
+            const memoVal = document.getElementById('stamp-memo').value;
+            if (!attendanceData[today]) {
+                attendanceData[today] = {
+                    date: today,
+                    clockIn: '',
+                    clockOut: '',
+                    breakStart: '',
+                    breakEnd: '',
+                    memo: ''
+                };
+            }
+            attendanceData[today].memo = memoVal;
+            localStorage.setItem('attendance_records', JSON.stringify(attendanceData));
+        }
+
+        // 稼働時間の時間・分数計算ユーティリティ
+        function calculateHours(record) {
+            if (!record.clockIn || !record.clockOut) return { text: '-', mins: 0 };
+
+            const toMinutes = (timeStr) => {
+                const [h, m] = timeStr.split(':').map(Number);
+                return h * 60 + m;
+            };
+
+            const inMins = toMinutes(record.clockIn);
+            const outMins = toMinutes(record.clockOut);
+            
+            let totalWorkMins = outMins - inMins;
+
+            // 休憩時間計算
+            let totalBreakMins = 0;
+            if (record.breakStart && record.breakEnd) {
+                const bStart = toMinutes(record.breakStart);
+                const bEnd = toMinutes(record.breakEnd);
+                if (bEnd > bStart) {
+                    totalBreakMins = bEnd - bStart;
+                }
+            }
+
+            // 実労働時間 = 総時間 - 休憩時間
+            let actualWorkMins = totalWorkMins - totalBreakMins;
+            if (actualWorkMins < 0) actualWorkMins = 0;
+
+            const h = Math.floor(actualWorkMins / 60);
+            const m = actualWorkMins % 60;
+
+            return {
+                text: `${h}時間${String(m).padStart(2, '0')}分`,
+                mins: actualWorkMins,
+                breakText: totalBreakMins > 0 ? `${Math.floor(totalBreakMins/60)}h ${totalBreakMins%60}m` : '-'
+            };
+        }
+
+        // 履歴のレンダリング
+        function renderHistory() {
+            const filterMonth = document.getElementById('filter-month').value; // e.g., "2026-06"
+            const tbody = document.getElementById('history-tbody');
+            const noDataView = document.getElementById('no-data-view');
+            tbody.innerHTML = '';
+
+            // 対象月の全データをフィルタリング＆ソート
+            const recordsInMonth = Object.values(attendanceData)
+                .filter(rec => rec.date && rec.date.startsWith(filterMonth))
+                .sort((a, b) => new Date(b.date) - new Date(a.date)); // 降順
+
+            if (recordsInMonth.length === 0) {
+                noDataView.classList.remove('hidden');
+            } else {
+                noDataView.classList.add('hidden');
+            }
+
+            let totalWorkMinutes = 0;
+            let workDaysCount = 0;
+
+            recordsInMonth.forEach(record => {
+                const dayObj = new Date(record.date);
+                const dayOfWeek = dayOfWeekStr[dayObj.getDay()];
+                const dayFormatted = `${dayObj.getDate()}日(${dayOfWeek})`;
+
+                const cal = calculateHours(record);
+                if (cal.mins > 0) {
+                    totalWorkMinutes += cal.mins;
+                    workDaysCount++;
+                }
+
+                // 出退勤表示
+                const clockInDisplay = record.clockIn || '--:--';
+                const clockOutDisplay = record.clockOut || '--:--';
+
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-50 transition duration-150";
+                tr.innerHTML = `
+                    <td class="py-3 px-4 font-semibold text-slate-600">${dayFormatted}</td>
+                    <td class="py-3 px-4">
+                        <div class="flex flex-col sm:flex-row sm:space-x-3 text-xs sm:text-sm">
+                            <span class="text-indigo-600 font-mono"><i class="fa-solid fa-right-to-bracket text-slate-300 mr-1 text-[10px]"></i>${clockInDisplay}</span>
+                            <span class="text-rose-600 font-mono"><i class="fa-solid fa-right-from-bracket text-slate-300 mr-1 text-[10px]"></i>${clockOutDisplay}</span>
+                        </div>
+                    </td>
+                    <td class="py-3 px-4 text-xs text-slate-500 font-mono">${cal.breakText || '-'}</td>
+                    <td class="py-3 px-4 font-mono font-bold text-slate-700">${cal.text}</td>
+                    <td class="py-3 px-4 text-xs text-slate-500 truncate max-w-[120px]" title="${record.memo || ''}">${record.memo || '-'}</td>
+                    <td class="py-3 px-4 text-center">
+                        <div class="flex items-center justify-center space-x-1.5">
+                            <button onclick="openEditRecordModal('${record.date}')" class="text-indigo-600 hover:text-indigo-900 p-1.5 hover:bg-indigo-50 rounded-lg transition" title="編集">
+                                <i class="fa-regular fa-pen-to-square"></i>
+                            </button>
+                            <button onclick="deleteRecord('${record.date}')" class="text-rose-600 hover:text-rose-900 p-1.5 hover:bg-rose-50 rounded-lg transition" title="削除">
+                                <i class="fa-regular fa-trash-can"></i>
+                            </button>
+                        </div>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            // 統計情報の更新
+            const h = Math.floor(totalWorkMinutes / 60);
+            const m = totalWorkMinutes % 60;
+            document.getElementById('stats-days').innerHTML = `${workDaysCount} <span class="text-xs text-slate-500">日</span>`;
+            document.getElementById('stats-hours').innerText = `${h}時間${String(m).padStart(2, '0')}分`;
+        }
+
+        // --- モーダル操作 ---
+
+        function openAddRecordModal() {
+            document.getElementById('modal-title').innerText = "勤務実績の手動追加";
+            document.getElementById('modal-mode').value = "add";
+            document.getElementById('modal-date').disabled = false;
+
+            // 初期入力値
+            document.getElementById('modal-date').value = getTodayKey();
+            document.getElementById('modal-clock-in').value = "09:00";
+            document.getElementById('modal-clock-out').value = "18:00";
+            document.getElementById('modal-break-start').value = "12:00";
+            document.getElementById('modal-break-end').value = "13:00";
+            document.getElementById('modal-memo').value = "";
+
+            document.getElementById('record-modal').classList.remove('hidden');
+        }
+
+        function openEditRecordModal(dateKey) {
+            const record = attendanceData[dateKey];
+            if (!record) return;
+
+            document.getElementById('modal-title').innerText = `${dateKey} の勤務編集`;
+            document.getElementById('modal-mode').value = "edit";
+            document.getElementById('modal-record-date').value = dateKey;
+            
+            document.getElementById('modal-date').value = record.date;
+            document.getElementById('modal-date').disabled = true; // 編集時は日付変更不可に設定
+            document.getElementById('modal-clock-in').value = record.clockIn || '';
+            document.getElementById('modal-clock-out').value = record.clockOut || '';
+            document.getElementById('modal-break-start').value = record.breakStart || '';
+            document.getElementById('modal-break-end').value = record.breakEnd || '';
+            document.getElementById('modal-memo').value = record.memo || '';
+
+            document.getElementById('record-modal').classList.remove('hidden');
+        }
+
+        function closeRecordModal() {
+            document.getElementById('record-modal').classList.add('hidden');
+        }
+
+        // 実績の保存
+        function saveRecord(e) {
+            e.preventDefault();
+            const mode = document.getElementById('modal-mode').value;
+            const date = document.getElementById('modal-date').value;
+
+            const record = {
+                date: date,
+                clockIn: document.getElementById('modal-clock-in').value,
+                clockOut: document.getElementById('modal-clock-out').value,
+                breakStart: document.getElementById('modal-break-start').value,
+                breakEnd: document.getElementById('modal-break-end').value,
+                memo: document.getElementById('modal-memo').value
+            };
+
+            attendanceData[date] = record;
+            saveState();
+            closeRecordModal();
+            showToast(`<i class="fa-solid fa-circle-check"></i>`, "勤務データを保存しました");
+        }
+
+        // 実績の削除
+        function deleteRecord(dateKey) {
+            // カスタムconfirm実装代わり
+            if (confirm(`${dateKey} の記録を削除します。よろしいですか？`)) {
+                delete attendanceData[dateKey];
+                saveState();
+                showToast(`<i class="fa-solid fa-trash-can"></i>`, "勤務記録を削除しました");
+            }
+        }
+
+        // --- CSVエクスポート ---
+        function exportToCSV() {
+            const filterMonth = document.getElementById('filter-month').value;
+            const recordsInMonth = Object.values(attendanceData)
+                .filter(rec => rec.date && rec.date.startsWith(filterMonth))
+                .sort((a, b) => new Date(a.date) - new Date(b.date));
+
+            if (recordsInMonth.length === 0) {
+                showToast(`<i class="fa-solid fa-triangle-exclamation"></i>`, "出力するデータが存在しません");
+                return;
+            }
+
+            // CSVヘッダー
+            let csvContent = "日付,出勤時間,退勤時間,休憩開始,休憩終了,実労働時間,メモ\r\n";
+
+            recordsInMonth.forEach(rec => {
+                const cal = calculateHours(rec);
+                const row = [
+                    rec.date,
+                    rec.clockIn || '',
+                    rec.clockOut || '',
+                    rec.breakStart || '',
+                    rec.breakEnd || '',
+                    cal.text.replace('時間', ':').replace('分', ''),
+                    `"${(rec.memo || '').replace(/"/g, '""')}"`
+                ].join(',');
+                csvContent += row + "\r\n";
+            });
+
+            // BOM追加でExcelの文字化けを防ぐ
+            const bom = new Uint8Array([0xEF, 0xBB, 0xBF]);
+            const blob = new Blob([bom, csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            
+            link.setAttribute("href", url);
+            link.setAttribute("download", `attendance_${filterMonth}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            showToast(`<i class="fa-solid fa-file-export"></i>`, "CSVダウンロードを開始しました");
+        }
+
+        // トースト通知の表示
+        function showToast(icon, message) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toast-icon').innerHTML = icon;
+            document.getElementById('toast-message').innerText = message;
+
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            toast.classList.add('translate-y-0', 'opacity-100');
+
+            setTimeout(() => {
+                toast.classList.remove('translate-y-0', 'opacity-100');
+                toast.classList.add('translate-y-20', 'opacity-0');
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
