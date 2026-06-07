@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>体調管理アプリ</title>
+    <!-- Tailwind CSSを読み込み -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* フォント設定 */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        body {
+            font-family: 'Inter', 'Noto Sans JP', sans-serif;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800">
+
+    <div class="container mx-auto p-4 sm:p-6 lg:p-8 max-w-3xl">
+       
+        <!-- ヘッダー -->
+        <header class="mb-8 text-center">
+            <p><a href="../index.html">一覧へ戻る</a></p>
+            <h1 class="text-3xl sm:text-4xl font-bold text-gray-900">体調管理アプリ</h1>
+            <p class="text-gray-600 mt-2">日々の健康状態を記録しましょう</p>
+        </header>
+
+        <!-- 入力フォーム -->
+        <div class="bg-white p-6 rounded-2xl shadow-lg mb-8">
+            <form id="health-form" class="space-y-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- 日付 -->
+                    <div>
+                        <label for="date" class="block text-sm font-medium text-gray-700 mb-1">日付</label>
+                        <input type="date" id="date" required class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
+                    </div>
+                    <!-- 就寝時間 -->
+                    <div>
+                        <label for="bedtime" class="block text-sm font-medium text-gray-700 mb-1">就寝時間</label>
+                        <input type="time" id="bedtime" required class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
+                    </div>
+                    <!-- 起床時間 -->
+                    <div>
+                        <label for="waking-time" class="block text-sm font-medium text-gray-700 mb-1">起床時間</label>
+                        <input type="time" id="waking-time" required class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
+                    </div>
+                    <!-- 体調 -->
+                    <div>
+                        <label for="condition" class="block text-sm font-medium text-gray-700 mb-1">体調</label>
+                        <select id="condition" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition bg-white">
+                            <option value="良い">😊 良い</option>
+                            <option value="普通" selected>😐 普通</option>
+                            <option value="悪い">🤢 悪い</option>
+                        </select>
+                    </div>
+                    <!-- 気持ち -->
+                    <div class="md:col-span-2">
+                        <label for="mood" class="block text-sm font-medium text-gray-700 mb-1">気持ち</label>
+                        <select id="mood" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition bg-white">
+                            <option value="嬉しい">😄 嬉しい</option>
+                            <option value="穏やか" selected>😌 穏やか</option>
+                            <option value="悲しい">😢 悲しい</option>
+                            <option value="怒り">😠 怒り</option>
+                            <option value="不安">😟 不安</option>
+                        </select>
+                    </div>
+                    <!-- メモ機能 -->
+                    <div class="md:col-span-2">
+                        <label for="memo" class="block text-sm font-medium text-gray-700 mb-1">メモ</label>
+                        <textarea id="memo" rows="3" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition" placeholder="今日の出来事や感じたことなどを記録しましょう。"></textarea>
+                    </div>
+                </div>
+               
+                <!-- 送信ボタン -->
+                <button type="submit" class="w-full bg-blue-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-300 transition-all duration-300 transform hover:scale-105">
+                    記録する
+                </button>
+            </form>
+        </div>
+
+        <!-- 記録リスト -->
+        <div>
+            <div class="flex flex-wrap justify-between items-center gap-4 mb-4">
+                <h2 class="text-2xl font-bold text-gray-900">記録一覧</h2>
+                <div class="flex items-center gap-2">
+                    <!-- 月フィルター -->
+                    <select id="month-filter" class="bg-white border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 p-2 transition"></select>
+                    <!-- エクスポートボタン -->
+                    <button id="export-csv" class="bg-green-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-green-700 focus:outline-none focus:ring-4 focus:ring-green-300 transition-all duration-300 text-sm">
+                        CSVエクスポート
+                    </button>
+                </div>
+            </div>
+            <div id="records-list" class="space-y-4">
+                <!-- 記録はここに動的に追加されます -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // DOM要素の取得
+        const healthForm = document.getElementById('health-form');
+        const dateInput = document.getElementById('date');
+        const bedtimeInput = document.getElementById('bedtime');
+        const wakingTimeInput = document.getElementById('waking-time');
+        const conditionInput = document.getElementById('condition');
+        const moodInput = document.getElementById('mood');
+        const memoInput = document.getElementById('memo');
+        const recordsList = document.getElementById('records-list');
+        const exportBtn = document.getElementById('export-csv');
+        const monthFilter = document.getElementById('month-filter');
+
+        // 今日の日付をデフォルトで設定
+        const today = new Date();
+        const yyyy = today.getFullYear();
+        const mm = String(today.getMonth() + 1).padStart(2, '0');
+        const dd = String(today.getDate()).padStart(2, '0');
+        dateInput.value = `${yyyy}-${mm}-${dd}`;
+
+        // ローカルストレージからデータを読み込む関数
+        const loadRecords = () => {
+            const records = JSON.parse(localStorage.getItem('healthRecords')) || [];
+            records.sort((a, b) => new Date(b.date) - new Date(a.date));
+            return records;
+        };
+
+        // データをローカルストレージに保存する関数
+        const saveRecords = (records) => {
+            localStorage.setItem('healthRecords', JSON.stringify(records));
+        };
+       
+        // 睡眠時間を計算する関数
+        const calculateSleepDuration = (bedtime, wakingTime) => {
+            if (!bedtime || !wakingTime) return 'N/A';
+            const bed = new Date(`1970-01-01T${bedtime}:00`);
+            const wake = new Date(`1970-01-01T${wakingTime}:00`);
+            if (wake <= bed) wake.setDate(wake.getDate() + 1);
+            const diff = wake.getTime() - bed.getTime();
+            const hours = Math.floor(diff / (1000 * 60 * 60));
+            const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+            return `${hours}時間${minutes}分`;
+        };
+
+        // 月フィルターを生成する関数
+        const populateMonthFilter = () => {
+            const records = loadRecords();
+            const uniqueMonths = [...new Set(records.map(r => r.date.substring(0, 7)))];
+           
+            const currentFilterValue = monthFilter.value;
+            monthFilter.innerHTML = '<option value="all">すべての月</option>';
+
+            uniqueMonths.forEach(month => {
+                const option = document.createElement('option');
+                option.value = month;
+                option.textContent = `${month.substring(0, 4)}年${parseInt(month.substring(5, 7), 10)}月`;
+                monthFilter.appendChild(option);
+            });
+
+            // 以前選択していたフィルター値を復元
+            if (uniqueMonths.includes(currentFilterValue)) {
+                monthFilter.value = currentFilterValue;
+            } else {
+                monthFilter.value = 'all';
+            }
+        };
+
+        // 記録を画面に表示する関数
+        const renderRecords = () => {
+            recordsList.innerHTML = '';
+            const allRecords = loadRecords();
+            const selectedMonth = monthFilter.value;
+
+            const filteredRecords = selectedMonth === 'all'
+                ? allRecords
+                : allRecords.filter(record => record.date.startsWith(selectedMonth));
+
+            if (filteredRecords.length === 0) {
+                recordsList.innerHTML = `<p class="text-gray-500 text-center p-4 bg-gray-50 rounded-lg">この月の記録はありません。</p>`;
+                exportBtn.disabled = true;
+                exportBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                return;
+            }
+
+            exportBtn.disabled = false;
+            exportBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+
+            filteredRecords.forEach(record => {
+                const sleepDuration = calculateSleepDuration(record.bedtime, record.wakingTime);
+                const recordElement = document.createElement('div');
+                recordElement.className = 'bg-white p-5 rounded-xl shadow-md transition-transform hover:shadow-lg hover:-translate-y-1';
+                const memoHtml = record.memo ? `<div class="mt-4 pt-4 border-t border-gray-200"><p class="text-sm text-gray-700 whitespace-pre-wrap">${record.memo}</p></div>` : '';
+                recordElement.innerHTML = `
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <p class="font-bold text-lg text-gray-800">${record.date}</p>
+                            <div class="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-2 text-gray-600">
+                                <p><span class="font-semibold">睡眠時間:</span> ${sleepDuration}</p>
+                                <p><span class="font-semibold">体調:</span> ${record.condition}</p>
+                                <p><span class="font-semibold">気持ち:</span> ${record.mood}</p>
+                            </div>
+                        </div>
+                        <button onclick="deleteRecord('${record.id}')" class="text-red-500 hover:text-red-700 font-semibold transition-colors">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                        </button>
+                    </div>
+                    ${memoHtml}
+                `;
+                recordsList.appendChild(recordElement);
+            });
+        };
+
+        // 記録を削除する関数
+        window.deleteRecord = (id) => {
+            let records = loadRecords();
+            records = records.filter(record => record.id !== id);
+            saveRecords(records);
+            populateMonthFilter();
+            renderRecords();
+        };
+       
+        // CSVエクスポート機能
+        const exportToCSV = () => {
+            const allRecords = loadRecords();
+            const selectedMonth = monthFilter.value;
+            const recordsToExport = selectedMonth === 'all'
+                ? allRecords
+                : allRecords.filter(record => record.date.startsWith(selectedMonth));
+
+            if (recordsToExport.length === 0) {
+                alert('エクスポートする記録がありません。');
+                return;
+            }
+
+            const headers = ['日付', '就寝時間', '起床時間', '睡眠時間', '体調', '気持ち', 'メモ'];
+            const rows = recordsToExport.map(record => {
+                const sleepDuration = calculateSleepDuration(record.bedtime, record.wakingTime);
+                const sanitizedMemo = `"${(record.memo || '').replace(/"/g, '""')}"`;
+                return [record.date, record.bedtime, record.wakingTime, sleepDuration, record.condition, record.mood, sanitizedMemo].join(',');
+            });
+
+            const csvContent = [headers.join(','), ...rows].join('\n');
+            const bom = new Uint8Array([0xEF, 0xBB, 0xBF]);
+            const blob = new Blob([bom, csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `health_records_${selectedMonth}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        };
+
+        // フォーム送信時の処理
+        healthForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const newRecord = {
+                id: Date.now().toString(),
+                date: dateInput.value,
+                bedtime: bedtimeInput.value,
+                wakingTime: wakingTimeInput.value,
+                condition: conditionInput.value,
+                mood: moodInput.value,
+                memo: memoInput.value.trim(),
+            };
+            const records = loadRecords();
+            records.push(newRecord);
+            saveRecords(records);
+            populateMonthFilter();
+            renderRecords();
+            healthForm.reset();
+            dateInput.value = `${yyyy}-${mm}-${dd}`;
+        });
+       
+        // イベントリスナーを追加
+        exportBtn.addEventListener('click', exportToCSV);
+        monthFilter.addEventListener('change', renderRecords);
+
+        // ページ読み込み時の初期化処理
+        document.addEventListener('DOMContentLoaded', () => {
+            populateMonthFilter();
+            renderRecords();
+        });
+    </script>
+
+</body>
+</html>
