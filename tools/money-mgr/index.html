@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>お小遣い帳（カテゴリ管理つき）</title>
+<style>
+  body{margin:0;background:#0f172a;color:#e5e7eb;font-family:"Noto Sans JP",sans-serif}
+  .wrap{max-width:900px;margin:0 auto;padding:12px}
+  h1{font-size:22px;margin:6px 0}
+  .card{background:#111827;border-radius:12px;padding:14px;margin-bottom:12px}
+  label{font-size:13px;color:#94a3b8;display:block;margin-top:6px}
+  input,select,button{width:100%;padding:10px;margin-top:2px;border-radius:10px;
+    border:1px solid rgba(148,163,184,.25);background:#0b1223;color:#e5e7eb;font-size:15px}
+  button{cursor:pointer;font-weight:bold}
+  .primary{background:#22c55e;border:none;color:#fff}
+  .secondary{background:#3b82f6;border:none;color:#fff}
+  .warn{background:#f59e0b;border:none;color:#fff}
+  .toolbar{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+  .statbox{display:flex;justify-content:space-around;text-align:center}
+  .stat .label{font-size:12px;color:#94a3b8}
+  .stat .value{font-size:17px;font-weight:bold}
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  th,td{padding:6px;border-bottom:1px solid #1e293b}
+  .actions button{font-size:12px;padding:4px}
+  .empty{text-align:center;padding:12px;color:#94a3b8}
+  .modal{position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:50}
+  .modal-content{background:#1e293b;padding:16px;border-radius:12px;max-width:400px;width:90%}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <p><a href="../index.html">一覧へ戻る</a></p>
+  <h1>📒 お小遣い帳
+    <button id="manageCatBtn" class="secondary" style="float:right;width:auto;padding:6px 12px;font-size:13px">カテゴリ管理</button>
+  </h1>
+
+  <!-- 入力フォーム -->
+  <div class="card">
+    <h2>新規登録</h2>
+    <label>日付 <input id="date" type="date"></label>
+    <label>区分 
+      <select id="type"><option value="expense">支出</option><option value="income">収入</option></select>
+    </label>
+    <label>金額（円） <input id="amount" type="number" inputmode="numeric"></label>
+    <label>カテゴリ <select id="category"></select></label>
+    <label>メモ <input id="memo" type="text"></label>
+    <div class="toolbar">
+      <button class="primary" id="addBtn">追加</button>
+      <button class="secondary" id="clearFormBtn">クリア</button>
+    </div>
+  </div>
+
+  <!-- サマリー -->
+  <div class="card">
+    <h2>概要</h2>
+    <div class="statbox">
+      <div class="stat"><div class="label">収入</div><div class="value" id="sumIncome">¥0</div></div>
+      <div class="stat"><div class="label">支出</div><div class="value" id="sumExpense">¥0</div></div>
+      <div class="stat"><div class="label">残高</div><div class="value" id="balance">¥0</div></div>
+    </div>
+    <div class="toolbar">
+      <button class="secondary" id="saveJsonBtn">JSON保存</button>
+      <button class="warn" id="saveCsvBtn">CSV保存</button>
+      <label><input id="loadJsonInput" type="file" accept=".json" style="display:none"><button class="secondary">JSON読込</button></label>
+      <button class="warn" id="clearAllBtn">全削除</button>
+    </div>
+  </div>
+
+  <!-- 明細 -->
+  <div class="card">
+    <h2>明細</h2>
+    <input id="search" type="search" placeholder="検索" style="margin-bottom:6px">
+    <select id="monthFilter" style="margin-bottom:6px"><option value="">全期間</option></select>
+    <div style="overflow-x:auto">
+      <table>
+        <thead><tr><th>日付</th><th>区分</th><th>カテゴリ</th><th>金額</th><th>メモ</th><th>操作</th></tr></thead>
+        <tbody id="tbody"><tr><td colspan="6" class="empty">記録なし</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- モーダル: カテゴリ管理 -->
+<div id="catModal" class="modal" style="display:none">
+  <div class="modal-content">
+    <h3>カテゴリ管理</h3>
+    <ul id="catList" style="list-style:none;padding:0;margin:8px 0"></ul>
+    <input id="newCat" placeholder="新しいカテゴリ">
+    <button class="primary" id="addCatBtn" style="margin-top:6px">追加</button>
+    <div class="toolbar" style="margin-top:10px">
+      <button class="secondary" onclick="closeModal()">閉じる</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const fmt=new Intl.NumberFormat('ja-JP',{style:'currency',currency:'JPY',maximumFractionDigits:0});
+const KEY_ENTRIES="okozukai.entries";const KEY_CATS="okozukai.categories";
+let entries=[];let categories=["食費","おやつ","ゲーム","書籍","交際","交通","学用品","お手伝い収入","お年玉","その他"];
+
+const $=id=>document.getElementById(id);
+function today(){return new Date().toISOString().slice(0,10);}
+function load(){entries=JSON.parse(localStorage.getItem(KEY_ENTRIES)||"[]");let cs=JSON.parse(localStorage.getItem(KEY_CATS)||"null");if(cs)categories=cs;}
+function save(){localStorage.setItem(KEY_ENTRIES,JSON.stringify(entries));}
+function saveCats(){localStorage.setItem(KEY_CATS,JSON.stringify(categories));}
+function renderCats(){
+  $("category").innerHTML=categories.map(c=>`<option>${c}</option>`).join("");
+  $("catList").innerHTML=categories.map((c,i)=>`<li style="margin:4px 0">
+    <input value="${c}" data-i="${i}" style="width:70%">
+    <button onclick="delCat(${i})" class="warn" style="width:auto;padding:4px 8px;font-size:12px">削除</button>
+  </li>`).join("");
+}
+function render(){
+  let q=$("search").value.toLowerCase(),mf=$("monthFilter").value;
+  let list=entries.filter(e=>(!mf||e.date.startsWith(mf))&&(!q||e.category.toLowerCase().includes(q)||e.memo.toLowerCase().includes(q)));
+  $("tbody").innerHTML=list.length?list.map(e=>`
+    <tr>
+      <td><input type="date" value="${e.date}" data-id="${e.id}" data-f="date"></td>
+      <td><select data-id="${e.id}" data-f="type"><option value="income" ${e.type=="income"?"selected":""}>収入</option><option value="expense" ${e.type=="expense"?"selected":""}>支出</option></select></td>
+      <td><input data-id="${e.id}" data-f="category" value="${e.category}"></td>
+      <td><input type="number" value="${e.amount}" data-id="${e.id}" data-f="amount" style="width:80px"></td>
+      <td><input value="${e.memo}" data-id="${e.id}" data-f="memo"></td>
+      <td><button onclick="update('${e.id}')">保存</button><button class="warn" onclick="del('${e.id}')">削除</button></td>
+    </tr>`).join(""):`<tr><td colspan="6" class="empty">記録なし</td></tr>`;
+  let sumI=entries.filter(e=>e.type=="income").reduce((a,b)=>a+b.amount,0);
+  let sumE=entries.filter(e=>e.type=="expense").reduce((a,b)=>a+b.amount,0);
+  $("sumIncome").textContent=fmt.format(sumI);$("sumExpense").textContent=fmt.format(sumE);$("balance").textContent=fmt.format(sumI-sumE);
+  let months=[...new Set(entries.map(e=>e.date.slice(0,7)))].sort().reverse();
+  $("monthFilter").innerHTML=`<option value="">全期間</option>`+months.map(m=>`<option>${m}</option>`).join("");
+  renderCats();
+}
+function add(){
+  let e={id:crypto.randomUUID(),date:$("date").value||today(),type:$("type").value,amount:+$("amount").value||0,category:$("category").value,memo:$("memo").value};
+  if(!e.amount){alert("金額を入力");return;}
+  entries.push(e);save();$("amount").value="";$("memo").value="";render();
+}
+function update(id){let obj=entries.find(x=>x.id==id);document.querySelectorAll("[data-id='"+id+"']").forEach(el=>{obj[el.dataset.f]=el.type=="number"?+el.value:el.value;});save();render();}
+function del(id){if(confirm("削除?")){entries=entries.filter(e=>e.id!=id);save();render();}}
+function clearAll(){if(confirm("全削除?")){entries=[];save();render();}}
+function saveJson(){let blob=new Blob([JSON.stringify({entries,categories},null,2)],{type:"application/json"});dl(blob,"okozukai.json");}
+function saveCsv(){let rows=["date,type,category,amount,memo"];entries.forEach(e=>rows.push([e.date,e.type,e.category,e.amount,e.memo].join(",")));dl(new Blob([rows.join("\n")],{type:"text/csv"}),"okozukai.csv");}
+function dl(blob,name){let a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;a.click();}
+$("addBtn").onclick=add;$("clearFormBtn").onclick=()=>{$("amount").value="";$("memo").value="";};
+$("saveJsonBtn").onclick=saveJson;$("saveCsvBtn").onclick=saveCsv;$("clearAllBtn").onclick=clearAll;
+$("search").oninput=render;$("monthFilter").onchange=render;
+$("loadJsonInput").onchange=e=>{let f=e.target.files[0];if(f){let r=new FileReader();r.onload=()=>{let obj=JSON.parse(r.result);entries=obj.entries||[];categories=obj.categories||categories;save();saveCats();render();};r.readAsText(f);}};
+$("date").value=today();
+function openModal(){$("catModal").style.display="flex";renderCats();}
+function closeModal(){$("catModal").style.display="none";saveCats();render();}
+$("manageCatBtn").onclick=openModal;
+$("addCatBtn").onclick=()=>{let v=$("newCat").value.trim();if(v){categories.push(v);$("newCat").value="";saveCats();renderCats();}};
+function delCat(i){categories.splice(i,1);saveCats();renderCats();}
+$("catList").addEventListener("input",e=>{if(e.target.dataset.i!==undefined){categories[e.target.dataset.i]=e.target.value;saveCats();}});
+load();render();
+</script>
+</body>
+</html>
