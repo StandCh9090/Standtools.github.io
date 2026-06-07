@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>スマホ対応メモ帳（.txt保存対応）</title>
+  <meta name="theme-color" content="#0ea5e9" />
+  <style>
+    :root{
+      --bg:#f7f7f8; --panel:#ffffff; --ink:#1f2937; --muted:#6b7280; --brand:#0ea5e9; --ring:#93c5fd;
+      --shadow:0 8px 24px rgba(0,0,0,.08);
+    }
+    @media (prefers-color-scheme: dark){
+      :root{ --bg:#0b0f14; --panel:#0f1720; --ink:#e5e7eb; --muted:#94a3b8; --brand:#38bdf8; --ring:#1e293b; --shadow:0 8px 24px rgba(0,0,0,.5); }
+    }
+    *{ box-sizing:border-box; }
+    html,body{ height:100%; }
+    body{
+      margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, "Hiragino Kaku Gothic ProN", "Yu Gothic", "Noto Sans JP", sans-serif;
+      background:var(--bg); color:var(--ink);
+    }
+    .app{ height:100%; display:flex; flex-direction:column; }
+    header{
+      position:sticky; top:0; z-index:10; background:var(--panel); box-shadow:var(--shadow);
+      padding: 10px env(safe-area-inset-right) 10px env(safe-area-inset-left);
+    }
+    .row{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+    .title{ font-weight:700; letter-spacing:.2px; }
+    .spacer{ flex:1; }
+    .bar{ display:flex; gap:8px; align-items:center; }
+    input[type="text"]{
+      appearance:none; border:1px solid var(--ring); background:transparent; color:inherit; border-radius:12px;
+      padding:.6rem .8rem; min-width: 160px; max-width: 60vw; font-size:1rem;
+    }
+    button, label.btn{
+      appearance:none; border:0; border-radius:14px; padding:.7rem 1rem; font-weight:600; font-size:1rem;
+      background:var(--brand); color:white; box-shadow:var(--shadow); cursor:pointer; display:inline-flex; align-items:center; gap:.5rem;
+    }
+    button.secondary, .secondary.btn{ background:transparent; color:var(--ink); border:1px solid var(--ring); }
+    button:active{ transform: translateY(1px); }
+    button:disabled{ opacity:.5; }
+    .hint{ color:var(--muted); font-size:.85rem; }
+
+    main{ flex:1; display:flex; padding:10px; }
+    .editorWrap{ width:100%; max-width:1200px; margin:0 auto; display:flex; flex-direction:column; gap:8px; }
+    textarea{
+      flex:1; width:100%; resize:none; border:1px solid var(--ring); border-radius:16px; padding:1rem 1rem 2.5rem 1rem;
+      font: 16px/1.6 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Noto Sans Mono", monospace;
+      background:var(--panel); color:inherit; box-shadow:var(--shadow);
+    }
+    footer{
+      position:sticky; bottom:0; z-index:10; background:var(--panel); box-shadow:var(--shadow);
+      padding: 8px env(safe-area-inset-right) 8px env(safe-area-inset-left);
+    }
+    .stats{ display:flex; gap:12px; flex-wrap:wrap; align-items:center; justify-content:space-between; }
+    .pill{ border:1px solid var(--ring); padding:.35rem .7rem; border-radius:999px; font-size:.9rem; }
+
+    /* Large tap targets for mobile */
+    @media (max-width: 480px){
+      input[type="text"]{ min-width: 120px; max-width: 48vw; }
+      button, label.btn{ padding:.75rem 1rem; font-size:1rem; }
+      .title{ display:none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app" id="app">
+    <header>
+      <div class="row">
+        <p><a href="../index.html">一覧へ戻る</a></p>
+        <div class="title">📒 メモ帳</div>
+        <input id="filename" type="text" placeholder="ファイル名 (例: memo)" aria-label="ファイル名" />
+        <div class="spacer"></div>
+        <div class="bar">
+          <button class="secondary" id="newBtn" title="新規(空にする)">新規</button>
+
+          <input type="file" id="openFile" accept=".txt,text/plain" hidden />
+          <label for="openFile" class="btn secondary" title="テキストファイルを開く">開く</label>
+
+          <button id="saveBtn" title=".txt として保存">保存(.txt)</button>
+          <button class="secondary" id="shareBtn" title="共有">共有</button>
+        </div>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <div class="hint">自動保存: <span id="saveState">未保存</span></div>
+        <div class="spacer"></div>
+        <div class="hint">タブ入力可 / ローカル保存対応</div>
+      </div>
+    </header>
+
+    <main>
+      <div class="editorWrap">
+        <textarea id="editor" placeholder="ここにメモを書いてください...\n(自動保存されます)\n\n使い方: 右上の保存で .txt ダウンロード / 開くで .txt 読み込み"></textarea>
+      </div>
+    </main>
+
+    <footer>
+      <div class="stats">
+        <div class="pill">文字数: <span id="chars">0</span></div>
+        <div class="pill">行数: <span id="lines">1</span></div>
+        <div class="pill">最終保存: <span id="lastSaved">—</span></div>
+      </div>
+    </footer>
+  </div>
+
+  <script>
+    (function(){
+      const LS_KEY = 'mobile-notepad-v1';
+      const editor = document.getElementById('editor');
+      const filenameInput = document.getElementById('filename');
+      const saveBtn = document.getElementById('saveBtn');
+      const newBtn = document.getElementById('newBtn');
+      const saveState = document.getElementById('saveState');
+      const chars = document.getElementById('chars');
+      const lines = document.getElementById('lines');
+      const lastSaved = document.getElementById('lastSaved');
+      const openFile = document.getElementById('openFile');
+      const shareBtn = document.getElementById('shareBtn');
+
+      // --- helpers ---
+      const fmtTime = d => {
+        const pad = n => String(n).padStart(2,'0');
+        return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+      }
+      const ensureTxt = name => name.endsWith('.txt') ? name : name + '.txt';
+      const defaultName = () => {
+        const d = new Date();
+        return `memo_${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}_${String(d.getHours()).padStart(2,'0')}${String(d.getMinutes()).padStart(2,'0')}`;
+      }
+
+      const updateStats = () => {
+        chars.textContent = editor.value.length;
+        lines.textContent = editor.value.split(/\n/).length;
+      };
+
+      // --- autosave ---
+      let dirty = false; let saveTimer = null;
+      const stageSave = () => {
+        dirty = true; saveState.textContent = '未保存';
+        if(saveTimer) clearTimeout(saveTimer);
+        saveTimer = setTimeout(doSave, 800);
+      }
+      const doSave = () => {
+        try{
+          const payload = { text: editor.value, name: filenameInput.value || '', ts: Date.now() };
+          localStorage.setItem(LS_KEY, JSON.stringify(payload));
+          dirty = false; saveState.textContent = '保存済み'; lastSaved.textContent = fmtTime(new Date());
+        }catch(e){ console.error(e); }
+      }
+
+      // --- load ---
+      try{
+        const raw = localStorage.getItem(LS_KEY);
+        if(raw){
+          const { text, name, ts } = JSON.parse(raw);
+          if(typeof text === 'string') editor.value = text;
+          if(typeof name === 'string') filenameInput.value = name;
+          if(ts) lastSaved.textContent = fmtTime(new Date(ts));
+          saveState.textContent = '保存済み';
+        }
+      }catch(e){ console.warn('failed to load from ls', e); }
+      updateStats();
+
+      // --- events ---
+      editor.addEventListener('input', () => { stageSave(); updateStats(); });
+
+      // Insert tab characters inside textarea
+      editor.addEventListener('keydown', (e) => {
+        if(e.key === 'Tab'){
+          e.preventDefault();
+          const start = editor.selectionStart; const end = editor.selectionEnd;
+          const v = editor.value; editor.value = v.substring(0,start) + '\t' + v.substring(end);
+          editor.selectionStart = editor.selectionEnd = start + 1;
+          stageSave(); updateStats();
+        }
+      });
+
+      newBtn.addEventListener('click', () => {
+        if(editor.value && !confirm('現在の内容を消去します。よろしいですか？')) return;
+        editor.value = '';
+        stageSave(); updateStats();
+      });
+
+      saveBtn.addEventListener('click', () => {
+        const name = ensureTxt((filenameInput.value || defaultName()).trim());
+        const blob = new Blob([editor.value], { type: 'text/plain;charset=utf-8' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = name;
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+        // also persist name to LS
+        stageSave(); doSave();
+      });
+
+      openFile.addEventListener('change', (e) => {
+        const file = e.target.files && e.target.files[0];
+        if(!file) return;
+        const reader = new FileReader();
+        reader.onload = () => {
+          editor.value = reader.result || '';
+          // set filename without path
+          const base = file.name.replace(/\.[^.]+$/, '');
+          filenameInput.value = base;
+          stageSave(); updateStats();
+        };
+        reader.readAsText(file, 'utf-8');
+        openFile.value = '';
+      });
+
+      shareBtn.addEventListener('click', async () => {
+        const name = ensureTxt((filenameInput.value || defaultName()).trim());
+        const blob = new Blob([editor.value], { type:'text/plain' });
+        try{
+          if(navigator.canShare && navigator.canShare({ files: [new File([blob], name, { type:'text/plain' })] })){
+            await navigator.share({
+              files: [new File([blob], name, { type:'text/plain' })],
+              title: 'メモを共有', text: 'メモを共有します'
+            });
+          }else{
+            // fallback: copy to clipboard
+            await navigator.clipboard.writeText(editor.value);
+            alert('共有に対応していないため、内容をクリップボードにコピーしました。');
+          }
+        }catch(err){ console.warn(err); }
+      });
+
+      window.addEventListener('beforeunload', () => { if(dirty) doSave(); });
+
+      // Ensure textarea fills viewport minus chrome
+      const resize = () => {
+        const headerH = document.querySelector('header').offsetHeight;
+        const footerH = document.querySelector('footer').offsetHeight;
+        const avail = window.innerHeight - headerH - footerH - 20; // paddings
+        editor.style.minHeight = Math.max(200, avail) + 'px';
+      };
+      window.addEventListener('resize', resize, { passive:true });
+      window.addEventListener('orientationchange', resize);
+      resize();
+    })();
+  </script>
+</body>
+</html>
