@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>シンプル日記アプリ</title>
+  <style>
+    :root {
+      --bg: #0b0c10;
+      --panel: #11131a;
+      --muted: #a9b1c3;
+      --text: #e6e9ef;
+      --accent: #6aa0ff;
+      --accent-2: #00c2a8;
+      --danger: #ff6b6b;
+      --border: #1d2130;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Noto Sans JP, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+      background: var(--bg); color: var(--text);
+      display: grid; grid-template-rows: auto 1fr; gap: 12px;
+    }
+    header {
+      display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--border); background: rgba(17,19,26,0.7); backdrop-filter: blur(6px);
+      position: sticky; top: 0; z-index: 10;
+    }
+    header h1 { font-size: 18px; margin: 0; letter-spacing: .02em; }
+    .container { display: grid; grid-template-columns: 320px 1fr; gap: 12px; padding: 0 12px 16px; }
+    @media (max-width: 860px) { .container { grid-template-columns: 1fr; } }
+
+    .card { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; box-shadow: 0 6px 18px rgba(0,0,0,.25); }
+    .left { display: grid; grid-template-rows: auto 1fr; min-height: 60vh; }
+
+    .toolbar { display:flex; flex-wrap: wrap; gap: 8px; }
+    .toolbar .group { display:flex; gap: 8px; }
+    .toolbar button, .toolbar label.btn, .toolbar a.btn {
+      border:1px solid var(--border); background:#151826; color:var(--text); padding:8px 12px; border-radius: 10px; cursor:pointer; font-weight:600; font-size: 13px; text-decoration:none; display:inline-flex; align-items:center; gap:8px;
+    }
+    .toolbar button:hover, .toolbar label.btn:hover, .toolbar a.btn:hover { background:#1a1f32; }
+    .toolbar button.primary { background: linear-gradient(135deg, var(--accent), var(--accent-2)); color: #081018; border: none; }
+    .toolbar button.danger { background: #2b1518; color:#ffb3b3; border-color:#412023; }
+
+    .sidebar { padding: 12px; }
+    .search { display:flex; gap:8px; }
+    .search input, .search select {
+      width:100%; padding:10px 12px; border-radius: 10px; border:1px solid var(--border); background:#0f1220; color:var(--text);
+    }
+
+    .list { margin-top: 10px; display:flex; flex-direction:column; gap:8px; overflow:auto; max-height: calc(100vh - 220px); padding-right: 4px; }
+    .item { border:1px solid var(--border); border-radius: 12px; padding:10px; background:#101425; cursor:pointer; display:grid; grid-template-columns: 1fr auto; gap:8px; }
+    .item:hover { outline: 2px solid rgba(106,160,255,.35); }
+    .item.active { outline: 2px solid var(--accent); }
+    .item h4 { margin:0 0 6px 0; font-size: 14px; white-space: nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .item p { margin:0; font-size:12px; color: var(--muted); display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+    .item .date { font-size: 12px; color: var(--muted); }
+
+    .editor { padding: 14px; display:grid; gap:12px; }
+    .row { display:grid; grid-template-columns: 160px 1fr; gap:10px; align-items:center; }
+    @media (max-width: 640px) { .row { grid-template-columns: 1fr; } }
+    .row input[type="date"], .row input[type="text"] {
+      width:100%; padding:10px 12px; border-radius: 10px; border:1px solid var(--border); background:#0f1220; color:var(--text);
+    }
+    textarea {
+      width:100%; min-height: 280px; resize: vertical; padding:12px; border-radius: 12px; border:1px solid var(--border); background:#0f1220; color:var(--text); line-height:1.65;
+    }
+
+    .hint { color: var(--muted); font-size: 12px; }
+    .footer { display:flex; align-items:center; justify-content:space-between; gap:10px; color: var(--muted); font-size:12px; }
+    .kbd { border:1px solid var(--border); background:#0c0f1b; padding:2px 6px; border-radius:6px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color:#cfd6e6; }
+
+    .chips { display:flex; flex-wrap:wrap; gap:6px; }
+    .chip { font-size:11px; padding:4px 8px; border-radius:999px; border:1px solid var(--border); color:var(--muted); background:#0f1220; }
+
+    .hidden { display:none; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1><a href="../index.html">一覧へ戻る</a></h1>
+    <h1>🗒️ シンプル日記</h1>
+    <div class="toolbar" style="margin-left:auto">
+      <div class="group">
+        <button id="newBtn" title="新規 (Ctrl+N)">新規</button>
+        <button class="primary" id="saveBtn" title="保存 (Ctrl+S)">保存</button>
+        <button class="danger" id="deleteBtn" title="削除 (Del)">削除</button>
+      </div>
+      <div class="group">
+        <button id="exportJsonBtn" title="すべてをJSONでエクスポート">全件JSON</button>
+        <button id="exportMdBtn" title="すべてをMarkdownでエクスポート">全件MD</button>
+        <label class="btn" title="JSONを読み込み"><input id="importFile" type="file" accept="application/json" class="hidden">読み込み</label>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <aside class="left card">
+      <div class="sidebar">
+        <div class="search">
+          <input id="searchInput" type="search" placeholder="キーワード / #タグ / 2025-08-27 など" />
+          <select id="sortSelect" title="並び順">
+            <option value="updatedDesc">更新↓</option>
+            <option value="updatedAsc">更新↑</option>
+            <option value="dateDesc">日付↓</option>
+            <option value="dateAsc">日付↑</option>
+            <option value="titleAsc">タイトルA→Z</option>
+          </select>
+        </div>
+        <div class="chips" style="margin-top:8px" id="quickChips"></div>
+        <div class="list" id="list"></div>
+      </div>
+    </aside>
+
+    <section class="card">
+      <div class="editor">
+        <div class="row">
+          <label for="date">日付</label>
+          <input id="date" type="date" />
+        </div>
+        <div class="row">
+          <label for="title">タイトル</label>
+          <input id="title" type="text" placeholder="タイトル (例: #仕事 #学び #運動)" />
+        </div>
+        <div class="row" style="grid-template-columns: 1fr;">
+          <textarea id="content" placeholder="ここに日記を書いてください。\n---\nヒント: #タグ を含めると検索しやすくなります。"></textarea>
+        </div>
+        <div class="footer">
+          <div>
+            <span id="status">未保存</span>
+          </div>
+          <div>
+            <span class="hint">ショートカット: <span class="kbd">Ctrl/⌘ + S</span> 保存 / <span class="kbd">Ctrl/⌘ + N</span> 新規 / <span class="kbd">Del</span> 削除</span>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    // ====== データ構造・永続化 ======
+    const STORAGE_KEY = 'diaryEntries.v1';
+    const ID = () => crypto.randomUUID();
+
+    /** @type {Array<{id:string,date:string,title:string,content:string,createdAt:number,updatedAt:number}>} */
+    let entries = [];
+    let currentId = null;
+    let dirty = false; // 未保存変更フラグ
+
+    function load() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        entries = raw ? JSON.parse(raw) : [];
+      } catch(e) {
+        console.error(e);
+        entries = [];
+      }
+    }
+    function persist() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+    }
+
+    // ====== ユーティリティ ======
+    const fmtDate = (d) => new Date(d).toISOString().slice(0,10);
+    const nowTs = () => Date.now();
+
+    function setTodayIfEmpty() {
+      const dateEl = document.getElementById('date');
+      if (!dateEl.value) dateEl.value = fmtDate(Date.now());
+    }
+
+    function setStatus(text) {
+      document.getElementById('status').textContent = text;
+    }
+
+    function getFormData() {
+      return {
+        date: document.getElementById('date').value || fmtDate(Date.now()),
+        title: document.getElementById('title').value.trim(),
+        content: document.getElementById('content').value,
+      };
+    }
+
+    function setFormData(entry) {
+      document.getElementById('date').value = entry?.date || '';
+      document.getElementById('title').value = entry?.title || '';
+      document.getElementById('content').value = entry?.content || '';
+      dirty = false; updateStatusBar();
+    }
+
+    function updateStatusBar() {
+      const e = entries.find(x => x.id === currentId);
+      if (!e) { setStatus('未保存'); return; }
+      const updated = new Date(e.updatedAt);
+      setStatus(`編集中: 更新 ${updated.toLocaleString()} / ID ${e.id.slice(0,8)}`);
+    }
+
+    // ====== エントリ操作 ======
+    function createNew() {
+      const e = {
+        id: ID(),
+        date: fmtDate(Date.now()),
+        title: '',
+        content: '',
+        createdAt: nowTs(),
+        updatedAt: nowTs(),
+      };
+      entries.unshift(e);
+      currentId = e.id;
+      setFormData(e);
+      renderList();
+      persist();
+    }
+
+    function saveCurrent() {
+      const data = getFormData();
+      if (!currentId) {
+        createNew();
+      }
+      let e = entries.find(x => x.id === currentId);
+      if (!e) {
+        e = { id: currentId || ID(), createdAt: nowTs(), updatedAt: nowTs(), date: data.date, title: data.title, content: data.content };
+        entries.unshift(e);
+      } else {
+        e.date = data.date;
+        e.title = data.title;
+        e.content = data.content;
+        e.updatedAt = nowTs();
+      }
+      persist();
+      dirty = false;
+      renderList();
+      updateStatusBar();
+    }
+
+    function deleteCurrent() {
+      if (!currentId) return;
+      const e = entries.find(x => x.id === currentId);
+      if (!e) return;
+      if (!confirm('この日記を削除しますか？')) return;
+      entries = entries.filter(x => x.id !== currentId);
+      persist();
+      currentId = entries[0]?.id || null;
+      setFormData(entries[0] || { date: fmtDate(Date.now()), title: '', content: '' });
+      renderList();
+      setStatus('削除しました');
+    }
+
+    // ====== リスト表示・検索 ======
+    const listEl = () => document.getElementById('list');
+
+    function renderList() {
+      const s = (document.getElementById('searchInput').value || '').trim();
+      const sort = document.getElementById('sortSelect').value;
+      let filtered = entries.slice();
+
+      // 簡易フィルタ: #タグ, 日付, 通常キーワード
+      if (s) {
+        const parts = s.split(/\s+/).filter(Boolean);
+        filtered = filtered.filter(e => parts.every(p => matchEntry(e, p)));
+      }
+
+      // 並び替え
+      filtered.sort((a,b) => {
+        switch (sort) {
+          case 'updatedAsc': return a.updatedAt - b.updatedAt;
+          case 'updatedDesc': return b.updatedAt - a.updatedAt;
+          case 'dateAsc': return a.date.localeCompare(b.date);
+          case 'dateDesc': return b.date.localeCompare(a.date);
+          case 'titleAsc': return a.title.localeCompare(b.title);
+          default: return b.updatedAt - a.updatedAt;
+        }
+      });
+
+      // クイックタグ
+      renderChips(topTags(entries));
+
+      // DOM
+      const ul = listEl();
+      ul.innerHTML = '';
+      if (filtered.length === 0) {
+        const empty = document.createElement('div');
+        empty.className = 'hint';
+        empty.textContent = '該当なし。新規作成してみましょう。';
+        ul.appendChild(empty);
+        return;
+      }
+
+      for (const e of filtered) {
+        const div = document.createElement('div');
+        div.className = 'item' + (e.id === currentId ? ' active' : '');
+        div.onclick = () => { 
+          if (dirty && !confirm('未保存の変更があります。破棄しますか？')) return; 
+          currentId = e.id; setFormData(e); renderList();
+        };
+        const h4 = document.createElement('h4');
+        h4.textContent = e.title || '(無題)';
+        const p = document.createElement('p');
+        p.textContent = e.content.replace(/\n/g,' ').slice(0, 140);
+        const date = document.createElement('div');
+        date.className = 'date';
+        const d = new Date(e.date + 'T00:00:00');
+        date.textContent = `${e.date}・更新 ${new Date(e.updatedAt).toLocaleString()}`;
+
+        div.appendChild(h4);
+        div.appendChild(date);
+        div.appendChild(p);
+        ul.appendChild(div);
+      }
+    }
+
+    function matchEntry(e, p) {
+      // #タグ → タイトル/本文に #tag を含むか
+      if (p.startsWith('#')) {
+        const tag = p.toLowerCase();
+        return (e.title + '\n' + e.content).toLowerCase().includes(tag);
+      }
+      // 日付(YYYY-MM-DD) 部分一致
+      if (/^\d{4}-\d{2}-\d{2}$/.test(p)) return e.date === p;
+      if (/^\d{4}-\d{2}$/.test(p)) return e.date.startsWith(p);
+      // 通常キーワード
+      const q = p.toLowerCase();
+      return (
+        e.title.toLowerCase().includes(q) ||
+        e.content.toLowerCase().includes(q)
+      );
+    }
+
+    function topTags(list) {
+      const m = new Map();
+      for (const e of list) {
+        const tags = (e.title + '\n' + e.content).match(/#[\p{L}\p{N}_-]+/gu) || [];
+        for (const t of tags) m.set(t, (m.get(t)||0)+1);
+      }
+      return [...m.entries()].sort((a,b)=>b[1]-a[1]).slice(0,8).map(([t,_])=>t);
+    }
+
+    function renderChips(tags) {
+      const box = document.getElementById('quickChips');
+      box.innerHTML = '';
+      for (const t of tags) {
+        const c = document.createElement('button');
+        c.className = 'chip';
+        c.textContent = t;
+        c.onclick = () => { document.getElementById('searchInput').value = t; renderList(); };
+        box.appendChild(c);
+      }
+    }
+
+    // ====== エクスポート / インポート ======
+    function download(filename, text) {
+      const blob = new Blob([text], { type: 'application/octet-stream' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = filename; document.body.appendChild(a); a.click();
+      setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); }, 0);
+    }
+
+    function exportJSON() {
+      const name = `diary-${new Date().toISOString().replace(/[:.]/g,'').slice(0,15)}.json`;
+      download(name, JSON.stringify(entries, null, 2));
+    }
+
+    function exportMarkdown() {
+      const lines = [];
+      const sorted = entries.slice().sort((a,b)=>a.date.localeCompare(b.date));
+      for (const e of sorted) {
+        lines.push(`# ${e.date} ${e.title || ''}`.trim());
+        lines.push('');
+        lines.push(e.content);
+        lines.push('');
+        lines.push(`> 更新: ${new Date(e.updatedAt).toLocaleString()}  (ID: ${e.id})`);
+        lines.push('\n---\n');
+      }
+      const name = `diary-${new Date().toISOString().slice(0,10)}.md`;
+      download(name, lines.join('\n'));
+    }
+
+    function importJSON(file) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          const data = JSON.parse(reader.result);
+          if (!Array.isArray(data)) throw new Error('形式が不正です');
+          // 既存とマージ（id一致は上書き）
+          const map = new Map(entries.map(e => [e.id, e]));
+          for (const x of data) {
+            if (!x.id) x.id = ID();
+            x.createdAt = x.createdAt || nowTs();
+            x.updatedAt = x.updatedAt || nowTs();
+            map.set(x.id, x);
+          }
+          entries = [...map.values()];
+          persist();
+          renderList();
+          alert('読み込み完了');
+        } catch (err) {
+          console.error(err);
+          alert('読み込みに失敗しました');
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    // ====== イベント ======
+    function onInputChanged() { dirty = true; setStatus('未保存の変更があります'); }
+
+    document.getElementById('newBtn').addEventListener('click', ()=>{
+      if (dirty && !confirm('未保存の変更があります。破棄しますか？')) return;
+      createNew();
+    });
+    document.getElementById('saveBtn').addEventListener('click', saveCurrent);
+    document.getElementById('deleteBtn').addEventListener('click', deleteCurrent);
+
+    document.getElementById('exportJsonBtn').addEventListener('click', exportJSON);
+    document.getElementById('exportMdBtn').addEventListener('click', exportMarkdown);
+    document.getElementById('importFile').addEventListener('change', (e)=>{
+      const file = e.target.files?.[0];
+      if (file) importJSON(file);
+      e.target.value = '';
+    });
+
+    document.getElementById('searchInput').addEventListener('input', renderList);
+    document.getElementById('sortSelect').addEventListener('change', renderList);
+
+    for (const id of ['date','title','content']) {
+      document.getElementById(id).addEventListener('input', onInputChanged);
+    }
+
+    // キーボードショートカット
+    window.addEventListener('keydown', (e) => {
+      const mac = navigator.platform.toLowerCase().includes('mac');
+      if ((mac ? e.metaKey : e.ctrlKey) && e.key.toLowerCase() === 's') {
+        e.preventDefault(); saveCurrent();
+      }
+      if ((mac ? e.metaKey : e.ctrlKey) && e.key.toLowerCase() === 'n') {
+        e.preventDefault(); if (dirty && !confirm('未保存の変更があります。破棄しますか？')) return; createNew();
+      }
+      if (e.key === 'Delete') {
+        if (document.activeElement && ['INPUT','TEXTAREA'].includes(document.activeElement.tagName)) return; // 入力中は無視
+        e.preventDefault(); deleteCurrent();
+      }
+    });
+
+    // ページ離脱警告
+    window.addEventListener('beforeunload', (e)=>{
+      if (dirty) { e.preventDefault(); e.returnValue = ''; }
+    });
+
+    // 初期化
+    load();
+    setTodayIfEmpty();
+    if (entries.length === 0) { createNew(); }
+    else { currentId = entries[0].id; setFormData(entries[0]); renderList(); }
+  </script>
+</body>
+</html>
