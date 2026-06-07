@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Offline Text-to-Speech</title>
+    <style>
+        :root {
+            --primary-color: #4a90e2;
+            --secondary-color: #f5f7fa;
+            --text-color: #333;
+            --border-radius: 12px;
+        }
+
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            background-color: #eef2f7;
+            color: var(--text-color);
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            background: white;
+            padding: 2rem;
+            border-radius: var(--border-radius);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            width: 90%;
+            max-width: 600px;
+        }
+
+        h1 {
+            text-align: center;
+            color: var(--primary-color);
+            margin-bottom: 1.5rem;
+        }
+
+        textarea {
+            width: 100%;
+            height: 200px;
+            padding: 1rem;
+            border: 2px solid #ddd;
+            border-radius: var(--border-radius);
+            font-size: 1rem;
+            resize: vertical;
+            box-sizing: border-box;
+            margin-bottom: 1rem;
+            transition: border-color 0.3s;
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: var(--primary-color);
+        }
+
+        .controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        label {
+            font-size: 0.85rem;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+            color: #666;
+        }
+
+        select, input[type="range"] {
+            width: 100%;
+            padding: 0.5rem;
+            border-radius: 6px;
+            border: 1px solid #ccc;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        button {
+            flex: 1;
+            padding: 0.8rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: opacity 0.2s, transform 0.1s;
+            color: white;
+            min-width: 100px;
+        }
+
+        button:active {
+            transform: scale(0.98);
+        }
+
+        .btn-play { background-color: #28a745; }
+        .btn-pause { background-color: #ffc107; color: #333; }
+        .btn-stop { background-color: #dc3545; }
+
+        .status {
+            margin-top: 1rem;
+            text-align: center;
+            font-size: 0.9rem;
+            color: #888;
+        }
+
+        @media (max-width: 480px) {
+            .controls {
+                grid-template-columns: 1fr;
+            }
+            .button-group {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <p><a href="../index.html">一覧へ戻る</a></p>
+    <h1>Text-to-Speech</h1>
+    
+    <textarea id="text-input" placeholder="ここに読み上げたいテキストを入力してください...">こんにちは。これはブラウザの機能を使ったオフライン読み上げアプリです。</textarea>
+
+    <div class="controls">
+        <div class="control-group" style="grid-column: span 2;">
+            <label for="voice-select">音声の選択</label>
+            <select id="voice-select"></select>
+        </div>
+        <div class="control-group">
+            <label for="rate">速度 (Speed)</label>
+            <input type="range" id="rate" min="0.5" max="2" value="1" step="0.1">
+        </div>
+        <div class="control-group">
+            <label for="pitch">ピッチ (Pitch)</label>
+            <input type="range" id="pitch" min="0" max="2" value="1" step="0.1">
+        </div>
+    </div>
+
+    <div class="button-group">
+        <button id="play-btn" class="btn-play">再生</button>
+        <button id="pause-btn" class="btn-pause">一時停止</button>
+        <button id="stop-btn" class="btn-stop">停止</button>
+    </div>
+
+    <div class="status" id="status-msg">待機中</div>
+</div>
+
+<script>
+    // Initialize SpeechSynthesis
+    const synth = window.speechSynthesis;
+
+    const textInput = document.getElementById('text-input');
+    const voiceSelect = document.getElementById('voice-select');
+    const rateInput = document.getElementById('rate');
+    const pitchInput = document.getElementById('pitch');
+    const playBtn = document.getElementById('play-btn');
+    const pauseBtn = document.getElementById('pause-btn');
+    const stopBtn = document.getElementById('stop-btn');
+    const statusMsg = document.getElementById('status-msg');
+
+    let voices = [];
+
+    // Populate voice list
+    function populateVoiceList() {
+        voices = synth.getVoices();
+        const selectedIndex = voiceSelect.selectedIndex < 0 ? 0 : voiceSelect.selectedIndex;
+        voiceSelect.innerHTML = '';
+        
+        voices.forEach((voice) => {
+            const option = document.createElement('option');
+            option.textContent = `${voice.name} (${voice.lang})`;
+            
+            if (voice.default) {
+                option.textContent += ' -- DEFAULT';
+            }
+
+            option.setAttribute('data-lang', voice.lang);
+            option.setAttribute('data-name', voice.name);
+            voiceSelect.appendChild(option);
+        });
+        voiceSelect.selectedIndex = selectedIndex;
+    }
+
+    // Chrome fixed: voices load asynchronously
+    if (speechSynthesis.onvoiceschanged !== undefined) {
+        speechSynthesis.onvoiceschanged = populateVoiceList;
+    }
+    populateVoiceList();
+
+    // Play function
+    function speak() {
+        if (synth.speaking) {
+            if (synth.paused) {
+                synth.resume();
+                statusMsg.textContent = '再生中...';
+                return;
+            }
+            console.error('Already speaking...');
+            return;
+        }
+
+        if (textInput.value !== '') {
+            const utterThis = new SpeechSynthesisUtterance(textInput.value);
+            
+            utterThis.onend = function (event) {
+                statusMsg.textContent = '完了';
+            };
+            
+            utterThis.onerror = function (event) {
+                statusMsg.textContent = 'エラーが発生しました';
+                console.error('SpeechSynthesisUtterance error', event);
+            };
+
+            const selectedOption = voiceSelect.selectedOptions[0].getAttribute('data-name');
+            for (let i = 0; i < voices.length; i++) {
+                if (voices[i].name === selectedOption) {
+                    utterThis.voice = voices[i];
+                    break;
+                }
+            }
+
+            utterThis.rate = rateInput.value;
+            utterThis.pitch = pitchInput.value;
+            
+            synth.speak(utterThis);
+            statusMsg.textContent = '再生中...';
+        }
+    }
+
+    // Event listeners
+    playBtn.addEventListener('click', () => {
+        speak();
+    });
+
+    pauseBtn.addEventListener('click', () => {
+        if (synth.speaking && !synth.paused) {
+            synth.pause();
+            statusMsg.textContent = '一時停止中';
+        } else if (synth.paused) {
+            synth.resume();
+            statusMsg.textContent = '再生中...';
+        }
+    });
+
+    stopBtn.addEventListener('click', () => {
+        synth.cancel();
+        statusMsg.textContent = '停止しました';
+    });
+
+    // Handle sudden page unloads
+    window.onbeforeunload = function() {
+        synth.cancel();
+    };
+</script>
+
+</body>
+</html>
