@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>タスク管理アプリ</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 p-4">
+    <p><a href="../index.html">一覧へ戻る</a></p>
+    <h1 class="text-3xl font-semibold text-center text-gray-800 my-8">タスク管理アプリ</h1>
+    <div class="container mx-auto rounded-lg shadow-md bg-white p-6">
+        <div class="todoSection">
+            <div class="todoForm rounded-lg bg-gray-200 p-6 mb-8 flex flex-col items-center gap-4">
+                <input type="text" id="taskInput" placeholder="タスクを入力してください" class="w-full sm:w-auto max-w-md px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500" />
+                <p id="error" class="text-red-500"></p>
+                <button class="add bg-indigo-500 hover:bg-indigo-600 text-white font-semibold py-2 px-6 rounded-md shadow-md transition duration-300 ease-in-out" onclick="addTask()">タスクを追加</button>
+            </div>
+
+            <div class="taskContainer flex flex-col lg:flex-row gap-8">
+                <div class="todoList w-full lg:w-1/2">
+                    <h2 class="text-2xl font-semibold text-gray-700 mb-4">未完了のタスク</h2>
+                    <ul id="todo" class="space-y-3">
+                        </ul>
+                </div>
+                <div class="completedList w-full lg:w-1/2">
+                    <h2 class="text-2xl font-semibold text-gray-700 mb-4">完了したタスク</h2>
+                    <ul id="completed" class="space-y-3">
+                        </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+        const taskInput = document.getElementById("taskInput");
+        const todoList = document.getElementById("todo");
+        const completedList = document.getElementById("completed");
+        const error = document.getElementById("error");
+
+        function addTask() {
+            const taskText = taskInput.value.trim();
+
+            if (taskText === "") {
+                error.textContent="タスクを入力してください！";
+                return;
+            }
+            error.textContent = "";
+
+            const listItem = document.createElement("li");
+            listItem.className = "flex items-center justify-between bg-gray-50 p-4 rounded-md shadow-sm";
+
+            const taskSpan = document.createElement("span");
+            taskSpan.textContent = taskText;
+            taskSpan.className = "flex-grow mr-4";
+
+            const buttonContainer = document.createElement("div");
+            buttonContainer.className = "flex gap-2";
+
+            const completeButton = document.createElement("button");
+            completeButton.textContent = "完了";
+            completeButton.className = "bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded-md shadow-md transition duration-300 ease-in-out text-sm";
+            completeButton.onclick = function() {
+                moveTask(listItem, completedList);
+            };
+
+            const deleteButton = document.createElement("button");
+            deleteButton.textContent = "削除";
+            deleteButton.className = "bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-4 rounded-md shadow-md transition duration-300 ease-in-out text-sm";
+            deleteButton.onclick = function() {
+                listItem.remove();
+            };
+
+            buttonContainer.appendChild(completeButton);
+            buttonContainer.appendChild(deleteButton);
+
+            listItem.appendChild(taskSpan);
+            listItem.appendChild(buttonContainer);
+            todoList.appendChild(listItem);
+
+            taskInput.value = ""; // 入力欄をクリア
+        }
+
+        function moveTask(task, destinationList) {
+            destinationList.appendChild(task);
+            const buttons = task.querySelectorAll('button'); // ボタンをすべて取得
+             buttons.forEach(button => button.remove()); // ボタンを削除
+            if (destinationList === completedList) {
+                task.querySelector('span').classList.add('line-through', 'text-gray-400');
+            }
+        }
+    </script>
+</body>
+</html>
