@@ -1,0 +1,65 @@
+[
+  {
+    "name": "動画編集ツール",
+    "description": "ブラウザで動画編集",
+    "url": "./video-editor/",
+    "category": "video",
+    "tags": ["編集", "動画", "クリエイター"]
+  },
+  {
+    "name": "出退勤管理ツール",
+    "description": "出退勤の時間を把握する",
+    "url": "./shuttaikin/",
+    "category": "utility",
+    "tags": ["仕事", "シンプル", "管理"]
+  },
+  {
+    "name": "メモツール",
+    "description": "シンプルなメモアプリ",
+    "url": "./memo/",
+    "category": "utility",
+    "tags": ["メモ", "仕事", "シンプル"]
+  },
+  {
+    "name": "日記",
+    "description": "シンプルな日記アプリ",
+    "url": "./diary/",
+    "category": "utility",
+    "tags": ["日記", "シンプル"]
+  },
+  {
+    "name": "作業日誌",
+    "description": "シンプルな作業日誌アプリ",
+    "url": "./work-diary/",
+    "category": "utility",
+    "tags": ["日記", "仕事", "シンプル"]
+  },
+  {
+    "name": "テキスト読み上げツール",
+    "description": "シンプルなテキスト読み上げアプリ",
+    "url": "./tts/",
+    "category": "utility",
+    "tags": ["読み上げ", "シンプル"]
+  },
+  {
+    "name": "学習記録ツール",
+    "description": "毎日の勉強を記録",
+    "url": "./study-log/",
+    "category": "utility",
+    "tags": ["記録", "学習"]
+  },
+  {
+    "name": "体調管理ツール",
+    "description": "毎日の体調を記録",
+    "url": "./taityoukanri/",
+    "category": "utility",
+    "tags": ["記録", "健康", "管理"]
+  },
+  {
+    "name": "お小遣い管理ツール",
+    "description": "シンプルで使いやすいお金の管理",
+    "url": "./money-mgr/",
+    "category": "utility",
+    "tags": ["管理", "金銭", "シンプル"]
+  }
+]
