@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>勉強記録アプリ</title>
+  <style>
+    :root{--bg:#f6f8fb;--card:#fff;--text:#222;--muted:#6b7280;--accent:#2563eb}
+    [data-theme="dark"]{--bg:#0b1220;--card:#0f1724;--text:#e6eef8;--muted:#9aa6bf;--accent:#60a5fa}
+    *{box-sizing:border-box}
+    body{margin:0;font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial;background:var(--bg);color:var(--text);padding:18px}
+    header{display:flex;gap:12px;align-items:center;justify-content:space-between;margin-bottom:18px}
+    h1{margin:0;font-size:20px}
+    .controls{display:flex;gap:8px;align-items:center}
+    .card{background:var(--card);border-radius:12px;padding:14px;box-shadow:0 6px 18px rgba(2,6,23,0.08)}
+    form{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px}
+    label{font-size:13px;color:var(--muted);display:block;margin-bottom:6px}
+    input[type=text], input[type=date], input[type=number], select, textarea{width:100%;padding:8px;border-radius:8px;border:1px solid #e6e9ef;background:transparent}
+    textarea{min-height:64px;resize:vertical}
+    button{padding:8px 12px;border-radius:8px;border:0;background:var(--accent);color:#fff;cursor:pointer}
+    .row{display:flex;gap:8px}
+    table{width:100%;border-collapse:collapse;margin-top:12px}
+    th,td{padding:8px;border-bottom:1px solid #eef2f7;font-size:13px;text-align:left}
+    tfoot td{font-weight:600}
+    .muted{color:var(--muted)}
+    .small{font-size:12px}
+    .actions button{margin-right:6px;background:transparent;color:var(--muted);padding:6px;border-radius:6px}
+    .filters{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+    @media(max-width:720px){form{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <header>
+    <p><a href="../index.html">一覧へ戻る</a></p>
+    <h1>勉強記録アプリ</h1>
+    <div class="controls">
+      <div class="small muted">ダークモード</div>
+      <label style="display:inline-flex;align-items:center;gap:6px"><input id="themeToggle" type="checkbox">切替</label>
+      <button id="exportCsv">CSVエクスポート</button>
+      <button id="exportJson">JSONエクスポート</button>
+      <input id="importJsonFile" type="file" accept="application/json" style="display:none">
+      <button id="importJson">JSON取り込み</button>
+    </div>
+  </header>
+
+  <main class="card">
+    <h2 class="small muted">新しい記録を追加</h2>
+    <form id="entryForm">
+      <div>
+        <label for="date">日付</label>
+        <input id="date" type="date" required>
+      </div>
+      <div>
+        <label for="subject">科目</label>
+        <input id="subject" type="text" placeholder="例：英語、数学、プログラミング" required>
+      </div>
+      <div>
+        <label for="content">学習内容</label>
+        <input id="content" type="text" placeholder="何を勉強したか（例：単語暗記、アルゴリズム練習）">
+      </div>
+      <div>
+        <label for="duration">学習時間（分）</label>
+        <input id="duration" type="number" min="0" step="1" placeholder="例：90" required>
+      </div>
+      <div style="grid-column:1/-1">
+        <label for="notes">感想・メモ</label>
+        <textarea id="notes" placeholder="今日の振り返りや次回の課題"></textarea>
+      </div>
+
+      <div style="grid-column:1/-1;display:flex;gap:8px;justify-content:flex-end">
+        <button type="submit">保存</button>
+        <button type="button" id="clearForm">クリア</button>
+      </div>
+    </form>
+
+    <section style="margin-top:16px">
+      <div class="row" style="align-items:center;justify-content:space-between">
+        <div>
+          <div class="muted small">フィルター</div>
+          <div class="filters">
+            <input id="filterSubject" type="text" placeholder="科目で絞り込み">
+            <input id="filterFrom" type="date">
+            <input id="filterTo" type="date">
+            <button id="applyFilter">適用</button>
+            <button id="resetFilter">リセット</button>
+          </div>
+        </div>
+        <div style="text-align:right">
+          <div class="muted small">週間合計</div>
+          <div id="weeklySummary" class="small">— 分</div>
+        </div>
+      </div>
+
+      <table id="entriesTable">
+        <thead>
+          <tr><th>日付</th><th>科目</th><th>学習内容</th><th>時間(分)</th><th>メモ</th><th>操作</th></tr>
+        </thead>
+        <tbody></tbody>
+        <tfoot>
+          <tr><td colspan="3">合計</td><td id="totalMinutes">0</td><td colspan="2"></td></tr>
+        </tfoot>
+      </table>
+    </section>
+  </main>
+
+  <script>
+    const STORAGE_KEY = 'study_log_entries_v1'
+    let entries = []
+    let editingId = null
+
+    // Theme
+    const themeToggle = document.getElementById('themeToggle')
+    function applyThemeFromStorage(){
+      const t = localStorage.getItem('study_log_theme')
+      if(t==='dark') document.documentElement.setAttribute('data-theme','dark')
+      themeToggle.checked = (t==='dark')
+    }
+    themeToggle.addEventListener('change', ()=>{
+      const dark = themeToggle.checked
+      if(dark){document.documentElement.setAttribute('data-theme','dark'); localStorage.setItem('study_log_theme','dark')}
+      else{document.documentElement.removeAttribute('data-theme'); localStorage.setItem('study_log_theme','light')}
+    })
+    applyThemeFromStorage()
+
+    // Utilities
+    function saveToStorage(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(entries)) }
+    function loadFromStorage(){ try{ entries = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [] }catch(e){ entries = [] } }
+    function uid(){ return 'id_' + Date.now() + '_' + Math.random().toString(36).slice(2,8) }
+
+    // Date helpers
+    function parseDate(s){ return new Date(s + 'T00:00:00') }
+    function formatDate(d){ const D = new Date(d); return D.toISOString().slice(0,10) }
+    function getWeekStart(date){ // Monday as start
+      const d = new Date(date)
+      const day = d.getDay() || 7
+      d.setDate(d.getDate() - day + 1)
+      d.setHours(0,0,0,0)
+      return d
+    }
+
+    // CRUD
+    const form = document.getElementById('entryForm')
+    form.addEventListener('submit', e=>{
+      e.preventDefault()
+      const date = document.getElementById('date').value
+      const subject = document.getElementById('subject').value.trim()
+      const content = document.getElementById('content').value.trim()
+      const duration = Number(document.getElementById('duration').value) || 0
+      const notes = document.getElementById('notes').value.trim()
+      if(!date || !subject) return alert('日付と科目は必須です')
+
+      if(editingId){
+        const it = entries.find(x=>x.id===editingId)
+        if(it){ Object.assign(it,{date,subject,content,duration,notes}); editingId=null }
+      } else {
+        entries.push({id:uid(),date,subject,content,duration,notes,created:Date.now()})
+      }
+      saveToStorage(); renderEntries(); form.reset()
+    })
+
+    document.getElementById('clearForm').addEventListener('click', ()=>{ editingId=null; form.reset() })
+
+    function renderEntries(filter={}){
+      const tbody = document.querySelector('#entriesTable tbody')
+      tbody.innerHTML=''
+      const rows = entries.slice().sort((a,b)=>b.date.localeCompare(a.date))
+        .filter(e=>{
+          if(filter.subject && !e.subject.includes(filter.subject)) return false
+          if(filter.from && e.date < filter.from) return false
+          if(filter.to && e.date > filter.to) return false
+          return true
+        })
+      let total = 0
+      rows.forEach(e=>{
+        const tr = document.createElement('tr')
+        tr.innerHTML = `<td>${e.date}</td><td>${escapeHtml(e.subject)}</td><td class="small muted">${escapeHtml(e.content)}</td><td>${e.duration}</td><td class="small">${escapeHtml(e.notes)}</td><td class="actions"><button data-id="${e.id}" class="editBtn">編集</button><button data-id="${e.id}" class="delBtn">削除</button></td>`
+        tbody.appendChild(tr)
+        total += Number(e.duration)||0
+      })
+      document.getElementById('totalMinutes').textContent = total
+      updateWeeklySummary()
+      // attach actions
+      document.querySelectorAll('.editBtn').forEach(b=>b.addEventListener('click', ()=>{ startEdit(b.dataset.id) }))
+      document.querySelectorAll('.delBtn').forEach(b=>b.addEventListener('click', ()=>{ deleteEntry(b.dataset.id) }))
+    }
+
+    function startEdit(id){ const e = entries.find(x=>x.id===id); if(!e) return; editingId=id; document.getElementById('date').value=e.date; document.getElementById('subject').value=e.subject; document.getElementById('content').value=e.content; document.getElementById('duration').value=e.duration; document.getElementById('notes').value=e.notes }
+    function deleteEntry(id){ if(!confirm('削除してよいですか？')) return; entries = entries.filter(x=>x.id!==id); saveToStorage(); renderEntries() }
+
+    // Filters
+    document.getElementById('applyFilter').addEventListener('click', ()=>{
+      const subj = document.getElementById('filterSubject').value.trim()
+      const from = document.getElementById('filterFrom').value
+      const to = document.getElementById('filterTo').value
+      renderEntries({subject:subj, from: from||null, to: to||null})
+    })
+    document.getElementById('resetFilter').addEventListener('click', ()=>{ document.getElementById('filterSubject').value=''; document.getElementById('filterFrom').value=''; document.getElementById('filterTo').value=''; renderEntries() })
+
+    // Export / Import
+    document.getElementById('exportJson').addEventListener('click', ()=>{ downloadJSON(entries, 'study_log.json') })
+    document.getElementById('exportCsv').addEventListener('click', ()=>{ downloadCSV(entries, 'study_log.csv') })
+    document.getElementById('importJson').addEventListener('click', ()=>{ document.getElementById('importJsonFile').click() })
+    document.getElementById('importJsonFile').addEventListener('change', e=>{
+      const f = e.target.files[0]; if(!f) return; const reader = new FileReader(); reader.onload = ev=>{
+        try{ const parsed = JSON.parse(ev.target.result); if(Array.isArray(parsed)) { entries = parsed; saveToStorage(); renderEntries(); alert('取り込み完了') } else alert('JSONの形式が不正です') } catch(err){ alert('読み込みに失敗しました') }
+      }; reader.readAsText(f)
+    })
+
+    function downloadJSON(obj, filename){ const blob = new Blob([JSON.stringify(obj, null, 2)], {type:'application/json'}); downloadBlob(blob, filename) }
+    function downloadCSV(data, filename){ const rows = [['date','subject','content','duration','notes']]; data.forEach(r=>rows.push([r.date,escapeCsv(r.subject),escapeCsv(r.content),r.duration,escapeCsv(r.notes)])); const csv = rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n'); const blob = new Blob([csv], {type:'text/csv'}); downloadBlob(blob, filename) }
+    function downloadBlob(blob, filename){ const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href=url; a.download=filename; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url) }
+
+    // Weekly summary (this week)
+    function updateWeeklySummary(){
+      if(entries.length===0){ document.getElementById('weeklySummary').textContent = '0 分'; return }
+      const today = new Date(); const start = getWeekStart(today)
+      const end = new Date(start); end.setDate(end.getDate()+6)
+      let total = 0
+      entries.forEach(e=>{
+        const d = new Date(e.date + 'T00:00:00')
+        if(d >= start && d <= end) total += Number(e.duration)||0
+      })
+      document.getElementById('weeklySummary').textContent = total + ' 分'
+    }
+
+    // Helpers
+    function escapeHtml(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') }
+    function escapeCsv(s){ return String(s||'') }
+
+    // Init
+    loadFromStorage(); renderEntries()
+  </script>
+</body>
+</html>
