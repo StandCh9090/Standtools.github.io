@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>動画編集アプリ（音量＋フェード対応）</title>
+<style>
+body { margin:0; font-family:sans-serif; background:#111; color:#fff; }
+header { padding:10px; text-align:center; background:#222; }
+video { width:100%; max-height:40vh; background:black; }
+button, input { width:100%; margin:5px 0; padding:10px; border:none; border-radius:8px; }
+.progress { width:100%; height:8px; background:#333; border-radius:4px; overflow:hidden; }
+.bar { height:100%; width:0%; background:#0f0; }
+</style>
+</head>
+<body>
+<header>
+  <p><a href="../index.html">一覧へ戻る</a></p>
+  <h1>動画編集アプリ（音量＋フェード）</h1>
+</header>
+<input type="file" id="fileInput" accept="video/*">
+<input type="file" id="bgmInput" accept="audio/*">
+
+<label>🎵 BGM音量</label>
+<input type="range" id="bgmVolume" min="0" max="1" step="0.1" value="0.5">
+
+<label>🎚 フェードイン秒</label>
+<input type="number" id="fadeIn" value="2">
+
+<label>🎚 フェードアウト秒</label>
+<input type="number" id="fadeOut" value="2">
+
+<button onclick="processVideo()">⚡ 書き出し</button>
+
+<div class="progress"><div class="bar" id="bar"></div></div>
+<video id="preview" controls></video>
+
+<script>
+let file, bgmFile;
+let video = document.getElementById('preview');
+let bar = document.getElementById('bar');
+
+fileInput.onchange = (e) => {
+  file = e.target.files[0];
+  video.src = URL.createObjectURL(file);
+};
+
+bgmInput.onchange = (e) => {
+  bgmFile = e.target.files[0];
+};
+
+async function processVideo() {
+  if (!file) return alert('動画を選択');
+
+  const volume = parseFloat(document.getElementById('bgmVolume').value);
+  const fadeIn = parseFloat(document.getElementById('fadeIn').value);
+  const fadeOut = parseFloat(document.getElementById('fadeOut').value);
+
+  const tempVideo = document.createElement('video');
+  tempVideo.src = URL.createObjectURL(file);
+  await tempVideo.play().catch(()=>{});
+  tempVideo.pause();
+
+  const canvas = document.createElement('canvas');
+  canvas.width = tempVideo.videoWidth;
+  canvas.height = tempVideo.videoHeight;
+  const ctx = canvas.getContext('2d');
+
+  const videoStream = canvas.captureStream();
+
+  const audioCtx = new AudioContext();
+  const dest = audioCtx.createMediaStreamDestination();
+
+  // 元音声
+  const videoSource = audioCtx.createMediaElementSource(tempVideo);
+  videoSource.connect(dest);
+
+  // BGM
+  let bgmAudio, bgmGain;
+  if (bgmFile) {
+    bgmAudio = new Audio(URL.createObjectURL(bgmFile));
+    const bgmSource = audioCtx.createMediaElementSource(bgmAudio);
+
+    bgmGain = audioCtx.createGain();
+    bgmGain.gain.value = 0;
+
+    bgmSource.connect(bgmGain).connect(dest);
+
+    bgmAudio.loop = true;
+    await bgmAudio.play();
+  }
+
+  const combinedStream = new MediaStream([
+    ...videoStream.getVideoTracks(),
+    ...dest.stream.getAudioTracks()
+  ]);
+
+  const recorder = new MediaRecorder(combinedStream, { mimeType: 'video/webm' });
+
+  let chunks = [];
+  recorder.ondataavailable = e => chunks.push(e.data);
+
+  recorder.start();
+
+  const duration = tempVideo.duration;
+  let current = 0;
+
+  while (current < duration) {
+    tempVideo.currentTime = current;
+    await new Promise(r => tempVideo.onseeked = r);
+
+    // フェード制御
+    if (bgmGain) {
+      let gain = volume;
+
+      if (current < fadeIn) {
+        gain = volume * (current / fadeIn);
+      }
+
+      if (current > duration - fadeOut) {
+        gain = volume * ((duration - current) / fadeOut);
+      }
+
+      bgmGain.gain.value = Math.max(0, gain);
+    }
+
+    ctx.drawImage(tempVideo, 0, 0);
+
+    current += 1/30;
+    bar.style.width = (current / duration * 100) + '%';
+  }
+
+  recorder.stop();
+
+  recorder.onstop = () => {
+    const blob = new Blob(chunks, { type: 'video/webm' });
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'final_with_fade.webm';
+    a.click();
+
+    bar.style.width = '0%';
+  };
+}
+</script>
+</body>
+</html>
