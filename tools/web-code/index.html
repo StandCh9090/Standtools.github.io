@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+
+<meta charset="UTF-8">
+
+<title>Web VSCode</title>
+
+<link rel="stylesheet" href="style.css">
+
+</head>
+
+
+<body>
+
+
+<div class="toolbar">
+
+
+<button onclick="openFolder()">
+📂 開く
+</button>
+
+
+<button onclick="newFile()">
+📄 新規
+</button>
+
+
+<button onclick="newFolder()">
+📁 フォルダ
+</button>
+
+
+<button onclick="renameItem()">
+✏変更
+</button>
+
+
+<button onclick="deleteItem()">
+🗑削除
+</button>
+
+
+<button onclick="saveFile()">
+💾保存
+</button>
+
+
+<span id="saveStatus"></span>
+
+</div>
+
+
+
+
+<div class="app">
+
+
+<div id="files"></div>
+
+
+
+<div class="main">
+
+
+<div id="tabs"></div>
+
+
+<div id="editor"></div>
+
+
+<iframe id="preview"></iframe>
+
+
+</div>
+
+
+
+</div>
+
+
+
+
+<script src="
+https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/loader.js">
+</script>
+
+
+<script src="editor.js"></script>
+
+
+</body>
+
+</html>
