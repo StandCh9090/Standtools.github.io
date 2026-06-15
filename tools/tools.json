@@ -61,5 +61,12 @@
     "url": "./money-mgr/",
     "category": "utility",
     "tags": ["管理", "金銭", "シンプル"]
+  },
+  {
+    "name": "ウェブコードエディター",
+    "description": "VSCodeライクなコードエディター",
+    "url": "./web-editor/",
+    "category": "utility",
+    "tags": ["開発"]
   }
 ]
