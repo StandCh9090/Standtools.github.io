@@ -65,7 +65,7 @@
   {
     "name": "ウェブコードエディター",
     "description": "VSCodeライクなコードエディター",
-    "url": "./web-editor/",
+    "url": "./web-code/",
     "category": "utility",
     "tags": ["開発"]
   }
