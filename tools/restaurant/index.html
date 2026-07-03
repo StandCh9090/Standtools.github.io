@@ -1,0 +1,1763 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>F&B Operations Suite</title>
+    <!-- Tailwind CSS (CDN) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght=300;400;500;600;700&family=Noto+Sans+JP:wght=300;400;500;700&display=swap');
+        body {
+            font-family: 'Inter', 'Noto Sans JP', sans-serif;
+        }
+        /* スクロールバーのカスタマイズ */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 flex h-screen overflow-hidden">
+
+    <!-- モバイル用サイドバーオーバーレイ（背景を暗くする） -->
+    <div id="sidebar-overlay" class="fixed inset-0 bg-slate-900/50 z-40 hidden md:hidden" onclick="toggleMobileSidebar(false)"></div>
+
+    <!-- サイドナビゲーション -->
+    <aside id="sidebar" class="w-64 bg-slate-900 text-slate-100 flex flex-col justify-between fixed md:relative inset-y-0 left-0 transform -translate-x-full md:translate-x-0 transition-transform duration-300 ease-in-out z-50 h-full shadow-lg">
+        <div>
+            <!-- ロゴ -->
+            <div class="p-6 border-b border-slate-800 flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <div class="bg-indigo-600 p-2 rounded-lg text-white">
+                        <i data-lucide="utensils-crossicons" class="w-6 h-6"></i>
+                    </div>
+                    <div>
+                        <h1 class="font-bold text-lg leading-tight">BistroSuite</h1>
+                        <span class="text-xs text-indigo-400 font-semibold uppercase tracking-wider">店舗支援システム</span>
+                    </div>
+                </div>
+                <!-- モバイル用閉じるボタン -->
+                <button onclick="toggleMobileSidebar(false)" class="md:hidden p-1 text-slate-400 hover:text-white">
+                    <i data-lucide="x" class="w-6 h-6"></i>
+                </button>
+            </div>
+
+            <!-- メニュー項目 -->
+            <nav class="p-4 space-y-1">
+                <button onclick="switchView('dashboard')" id="nav-dashboard" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-sm font-medium transition bg-indigo-600 text-white shadow-md">
+                    <i data-lucide="layout-dashboard" class="w-5 h-5"></i>
+                    <span>ダッシュボード</span>
+                </button>
+                <button onclick="switchView('tables')" id="nav-tables" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-sm font-medium transition text-slate-300 hover:bg-slate-800/50 hover:text-white">
+                    <i data-lucide="grid" class="w-5 h-5"></i>
+                    <span>テーブル管理</span>
+                </button>
+                <button onclick="switchView('order')" id="nav-order" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-sm font-medium transition text-slate-300 hover:bg-slate-800/50 hover:text-white">
+                    <i data-lucide="shopping-cart" class="w-5 h-5"></i>
+                    <span>オーダー入力</span>
+                </button>
+                <button onclick="switchView('menu')" id="nav-menu" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-sm font-medium transition text-slate-300 hover:bg-slate-800/50 hover:text-white">
+                    <i data-lucide="book-open" class="w-5 h-5"></i>
+                    <span>メニュー設定</span>
+                </button>
+                <button onclick="switchView('sales')" id="nav-sales" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-sm font-medium transition text-slate-300 hover:bg-slate-800/50 hover:text-white">
+                    <i data-lucide="bar-chart-3" class="w-5 h-5"></i>
+                    <span>売上・会計履歴</span>
+                </button>
+            </nav>
+        </div>
+
+        <!-- ユーザー情報 & 操作 -->
+        <div class="p-4 border-t border-slate-800">
+            <div class="flex items-center space-x-3 mb-4">
+                <div class="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center text-sm font-semibold text-white border border-slate-600">
+                    店長
+                </div>
+                <div>
+                    <p class="text-sm font-medium text-white">管理者ユーザー</p>
+                    <p class="text-xs text-slate-400">メイン端末 A</p>
+                </div>
+            </div>
+            <button onclick="resetDataPrompt()" class="w-full flex items-center justify-center space-x-2 px-4 py-2 bg-slate-800 hover:bg-red-950/40 text-slate-400 hover:text-red-400 rounded-lg text-xs transition border border-slate-700/50">
+                <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                <span>本日のデータを初期化</span>
+            </button>
+        </div>
+    </aside>
+
+    <!-- メインコンテンツ領域 -->
+    <main class="flex-1 flex flex-col h-full overflow-hidden">
+        
+        <!-- ヘッダー -->
+        <header class="bg-white border-b border-slate-200 h-16 flex items-center justify-between px-6 flex-shrink-0">
+            <div class="flex items-center space-x-4">
+                <!-- モバイルメニュー用ボタン -->
+                <button onclick="toggleMobileSidebar(true)" class="md:hidden p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition">
+                    <i data-lucide="menu" class="w-6 h-6"></i>
+                </button>
+                <h2 id="header-title" class="text-xl font-bold text-slate-800">ダッシュボード</h2>
+            </div>
+            
+            <!-- 日時・ステータス -->
+            <div class="flex items-center space-x-4">
+                <div class="text-right hidden sm:block">
+                    <p id="current-date" class="text-xs text-slate-500 font-medium"></p>
+                    <p id="current-time" class="text-sm font-bold text-slate-700"></p>
+                </div>
+                <div class="h-8 w-[1px] bg-slate-200 hidden sm:block"></div>
+                <!-- 接続インジケータ -->
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800">
+                    <span class="w-1.5 h-1.5 mr-1.5 bg-emerald-500 rounded-full animate-ping"></span>
+                    稼働中 (ローカル)
+                </span>
+            </div>
+        </header>
+
+        <!-- メイン画面表示エリア -->
+        <div class="flex-1 overflow-y-auto p-6 relative">
+
+            <!-- 1. ダッシュボード画面 -->
+            <section id="view-dashboard" class="space-y-6">
+                <!-- サマリーカード -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center justify-between">
+                        <div>
+                            <p class="text-sm font-medium text-slate-500">本日の総売上</p>
+                            <h3 id="stat-sales" class="text-3xl font-bold text-slate-900 mt-1">¥0</h3>
+                            <p class="text-xs text-emerald-600 mt-1 font-medium flex items-center">
+                                <i data-lucide="trending-up" class="w-3.5 h-3.5 mr-1"></i> 目標比 100%
+                            </p>
+                        </div>
+                        <div class="p-3 bg-indigo-50 text-indigo-600 rounded-xl">
+                            <i data-lucide="japanese-yen" class="w-8 h-8"></i>
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center justify-between">
+                        <div>
+                            <p class="text-sm font-medium text-slate-500">テーブル稼働率</p>
+                            <h3 id="stat-occupancy" class="text-3xl font-bold text-slate-900 mt-1">0%</h3>
+                            <p id="stat-occupancy-detail" class="text-xs text-slate-500 mt-1 font-medium">0 / 8 テーブル</p>
+                        </div>
+                        <div class="p-3 bg-amber-50 text-amber-600 rounded-xl">
+                            <i data-lucide="users" class="w-8 h-8"></i>
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center justify-between">
+                        <div>
+                            <p class="text-sm font-medium text-slate-500">アクティブオーダー数</p>
+                            <h3 id="stat-orders" class="text-3xl font-bold text-slate-900 mt-1">0 件</h3>
+                            <p class="text-xs text-blue-600 mt-1 font-medium">配膳待ちを含む</p>
+                        </div>
+                        <div class="p-3 bg-blue-50 text-blue-600 rounded-xl">
+                            <i data-lucide="cooking-pot" class="w-8 h-8"></i>
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center justify-between">
+                        <div>
+                            <p class="text-sm font-medium text-slate-500">客単価平均</p>
+                            <h3 id="stat-avg-spend" class="text-3xl font-bold text-slate-900 mt-1">¥0</h3>
+                            <p class="text-xs text-slate-500 mt-1 font-medium">本日計上分より算出</p>
+                        </div>
+                        <div class="p-3 bg-emerald-50 text-emerald-600 rounded-xl">
+                            <i data-lucide="calculator" class="w-8 h-8"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- テーブルグリッド（簡易版） -->
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                    <div class="flex items-center justify-between mb-6">
+                        <div>
+                            <h3 class="text-lg font-bold text-slate-900">フロアマップ・席状況</h3>
+                            <p class="text-sm text-slate-500">座席状況の確認と会計・新規注文への遷移</p>
+                        </div>
+                        <button onclick="switchView('tables')" class="text-sm text-indigo-600 hover:text-indigo-800 font-semibold flex items-center space-x-1">
+                            <span>席管理を詳しく見る</span>
+                            <i data-lucide="arrow-right" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                    <div id="dashboard-tables-grid" class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                        <!-- JSで動的にテーブルを表示 -->
+                    </div>
+                </div>
+
+                <!-- 直近の注文アクティビティ -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 lg:col-span-2">
+                        <h3 class="text-lg font-bold text-slate-900 mb-4">本日の会計履歴</h3>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left border-collapse">
+                                <thead>
+                                    <tr class="border-b border-slate-100 text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                                        <th class="py-3 px-4">時間</th>
+                                        <th class="py-3 px-4">テーブル</th>
+                                        <th class="py-3 px-4">注文内容</th>
+                                        <th class="py-3 px-4 text-right">金額</th>
+                                        <th class="py-3 px-4">決済方法</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="dashboard-recent-sales" class="divide-y divide-slate-50 text-sm text-slate-600">
+                                    <!-- JSで挿入 -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-lg font-bold text-slate-900">本日人気の商品</h3>
+                            <span class="text-xs bg-slate-100 text-slate-600 px-2 py-1 rounded">件数順</span>
+                        </div>
+                        <div id="dashboard-popular-items" class="space-y-4">
+                            <!-- JSで挿入 -->
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 2. テーブル管理画面 -->
+            <section id="view-tables" class="hidden space-y-6">
+                <!-- ステータス凡例 -->
+                <div class="flex flex-wrap items-center gap-4 bg-white p-4 rounded-xl shadow-sm border border-slate-100">
+                    <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">状態フィルター:</span>
+                    <button onclick="filterTables('all', event)" class="table-filter-btn px-3 py-1 text-xs font-medium rounded-full bg-slate-900 text-white shadow-sm">全て</button>
+                    <button onclick="filterTables('empty', event)" class="table-filter-btn px-3 py-1 text-xs font-medium rounded-full text-slate-600 hover:bg-slate-100">空席</button>
+                    <button onclick="filterTables('ordered', event)" class="table-filter-btn px-3 py-1 text-xs font-medium rounded-full text-slate-600 hover:bg-slate-100">注文中</button>
+                    <button onclick="filterTables('waiting-food', event)" class="table-filter-btn px-3 py-1 text-xs font-medium rounded-full text-slate-600 hover:bg-slate-100">配膳待ち</button>
+                    <button onclick="filterTables('waiting-bill', event)" class="table-filter-btn px-3 py-1 text-xs font-medium rounded-full text-slate-600 hover:bg-slate-100">会計待ち</button>
+                </div>
+
+                <!-- テーブルレイアウトグリッド -->
+                <div id="tables-main-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <!-- JSで動的にテーブルカードを表示 -->
+                </div>
+            </section>
+
+            <!-- 3. オーダーエントリー（注文入力）画面 -->
+            <section id="view-order" class="hidden grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                
+                <!-- 左側：テーブル選択＆メニュー選択 -->
+                <div class="lg:col-span-8 space-y-6">
+                    <!-- 対象テーブルの選択 -->
+                    <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                            <div class="flex items-center space-x-3">
+                                <label for="order-table-select" class="text-sm font-bold text-slate-700 whitespace-nowrap">注文登録テーブル:</label>
+                                <select id="order-table-select" onchange="onOrderTableChange()" class="bg-slate-50 border border-slate-200 text-slate-800 rounded-lg px-4 py-2 text-sm font-bold focus:ring-2 focus:ring-indigo-500 focus:outline-none w-48">
+                                    <!-- JSで挿入 -->
+                                </select>
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <span class="text-xs text-slate-500">現在の席ステータス:</span>
+                                <span id="order-table-status-badge" class="px-2.5 py-1 rounded-full text-xs font-semibold"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- メニューカテゴリー切替 -->
+                    <div class="flex overflow-x-auto space-x-2 pb-2" id="category-tabs">
+                        <button onclick="filterMenuByCategory('all', event)" class="category-btn whitespace-nowrap px-4 py-2 text-sm font-medium rounded-full bg-indigo-600 text-white shadow-sm">すべて</button>
+                        <button onclick="filterMenuByCategory('food', event)" class="category-btn whitespace-nowrap px-4 py-2 text-sm font-medium rounded-full bg-white text-slate-600 border border-slate-200 hover:bg-slate-50">フード</button>
+                        <button onclick="filterMenuByCategory('drink', event)" class="category-btn whitespace-nowrap px-4 py-2 text-sm font-medium rounded-full bg-white text-slate-600 border border-slate-200 hover:bg-slate-50">ドリンク</button>
+                        <button onclick="filterMenuByCategory('dessert', event)" class="category-btn whitespace-nowrap px-4 py-2 text-sm font-medium rounded-full bg-white text-slate-600 border border-slate-200 hover:bg-slate-50">デザート</button>
+                    </div>
+
+                    <!-- メニューアイテムリスト -->
+                    <div id="order-menu-grid" class="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                        <!-- JSでメニューアイテムカードを表示 -->
+                    </div>
+                </div>
+
+                <!-- 右側：カート（現在の伝票・注文入力バッファ） -->
+                <div class="lg:col-span-4 bg-white rounded-2xl shadow-sm border border-slate-100 flex flex-col h-[calc(100vh-12rem)] sticky top-6">
+                    <div class="p-5 border-b border-slate-100 flex items-center justify-between">
+                        <div>
+                            <h3 class="font-bold text-slate-900 flex items-center">
+                                <i data-lucide="clipboard-list" class="w-5 h-5 mr-1.5 text-indigo-600"></i>
+                                テーブル注文伝票
+                            </h3>
+                            <p class="text-xs text-slate-500 mt-0.5"><span id="cart-table-name" class="font-bold text-slate-700">T-1</span> の確定前オーダー</p>
+                        </div>
+                        <button onclick="clearCart()" class="text-xs text-rose-500 hover:text-rose-700 font-medium">クリア</button>
+                    </div>
+
+                    <!-- 注文商品リスト -->
+                    <div id="cart-items-list" class="flex-1 overflow-y-auto p-5 space-y-4">
+                        <!-- JSでカート内アイテムを挿入 -->
+                        <div class="text-center py-12 text-slate-400">
+                            <i data-lucide="shopping-basket" class="w-12 h-12 mx-auto mb-2 opacity-50"></i>
+                            <p class="text-sm">商品が選択されていません</p>
+                        </div>
+                    </div>
+
+                    <!-- 合計およびアクション -->
+                    <div class="p-5 border-t border-slate-100 bg-slate-50 rounded-b-2xl">
+                        <div class="flex items-center justify-between mb-4">
+                            <span class="text-sm font-bold text-slate-700">新規追加分の合計</span>
+                            <span id="cart-total-price" class="text-xl font-bold text-indigo-600">¥0</span>
+                        </div>
+                        
+                        <div class="grid grid-cols-2 gap-3">
+                            <!-- 注文確定してキッチンへ -->
+                            <button onclick="submitOrder('ordered')" class="col-span-2 w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 px-4 rounded-xl transition duration-150 flex items-center justify-center space-x-2 shadow-sm">
+                                <i data-lucide="send" class="w-5 h-5"></i>
+                                <span>注文確定 (調理開始)</span>
+                            </button>
+                        </div>
+                        
+                        <div class="mt-4 pt-4 border-t border-slate-200">
+                            <h4 class="text-xs font-bold text-slate-500 mb-2">確定済みの注文履歴:</h4>
+                            <div id="cart-submitted-list" class="max-h-24 overflow-y-auto text-xs text-slate-600 space-y-1">
+                                <!-- JSで既に登録されている品目を表示 -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 4. メニュー管理画面 -->
+            <section id="view-menu" class="hidden space-y-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h3 class="text-lg font-bold text-slate-900">メニュー設定</h3>
+                        <p class="text-sm text-slate-500 font-normal">品切れの切り替えや、メニューアイテムの新規作成が行えます</p>
+                    </div>
+                    <button onclick="openMenuModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-4 rounded-xl transition duration-150 text-sm flex items-center space-x-1.5 shadow-sm">
+                        <i data-lucide="plus" class="w-4 h-4"></i>
+                        <span>メニュー新規登録</span>
+                    </button>
+                </div>
+
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-slate-50 border-b border-slate-200 text-xs font-bold text-slate-500 uppercase tracking-wider">
+                                <th class="py-4 px-6">商品名</th>
+                                <th class="py-4 px-6">カテゴリー</th>
+                                <th class="py-4 px-6 text-right">単価(税込)</th>
+                                <th class="py-4 px-6 text-center">販売ステータス</th>
+                                <th class="py-4 px-6 text-right">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="menu-management-table" class="divide-y divide-slate-100 text-sm text-slate-700">
+                            <!-- JSでメニュー行を動的に構築 -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- 5. 売上履歴 / POSデータ画面 -->
+            <section id="view-sales" class="hidden space-y-6">
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- 売上サマリー -->
+                    <div class="bg-gradient-to-br from-indigo-900 to-slate-900 p-6 rounded-2xl text-white shadow-md flex flex-col justify-between">
+                        <div>
+                            <p class="text-indigo-300 text-xs font-bold uppercase tracking-wider">本日の営業サマリー</p>
+                            <h3 id="sales-summary-total" class="text-4xl font-extrabold mt-2">¥0</h3>
+                            <p id="sales-summary-count" class="text-sm text-slate-300 mt-2">総決済件数: 0 件</p>
+                        </div>
+                        <div class="mt-6 pt-4 border-t border-indigo-800 flex justify-between text-xs text-indigo-200">
+                            <span>客単価: <span id="sales-summary-avg" class="font-bold text-white">¥0</span></span>
+                            <span>稼働率: <span id="sales-summary-occupancy" class="font-bold text-white">0%</span></span>
+                        </div>
+                    </div>
+
+                    <!-- 決済方法の内訳 -->
+                    <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-between">
+                        <h4 class="font-bold text-slate-900 text-sm mb-4">決済方法別の内訳</h4>
+                        <div class="space-y-3" id="payment-method-stats">
+                            <!-- JSで更新 -->
+                        </div>
+                    </div>
+
+                    <!-- 営業目標進捗 -->
+                    <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                        <h4 class="font-bold text-slate-900 text-sm mb-2">本日の目標達成度</h4>
+                        <div class="space-y-4 mt-4">
+                            <div>
+                                <div class="flex justify-between text-xs font-bold text-slate-500 mb-1">
+                                    <span>売上目標 (¥150,000)</span>
+                                    <span id="sales-progress-percentage">0%</span>
+                                </div>
+                                <div class="w-full bg-slate-100 rounded-full h-3">
+                                    <div id="sales-progress-bar" class="bg-indigo-600 h-3 rounded-full transition-all duration-500" style="width: 0%"></div>
+                                </div>
+                            </div>
+                            <p class="text-xs text-slate-500 leading-relaxed">
+                                目標達成には、ディナー帯の客単価アップ、またはドリンクプロモーションの強化が有効です。
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 会計ログ明細 -->
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+                    <div class="p-6 border-b border-slate-100 flex items-center justify-between">
+                        <h3 class="font-bold text-slate-900">売上伝票ログ一覧</h3>
+                        <button onclick="exportSalesHistory()" class="flex items-center space-x-1 px-3 py-1.5 text-xs font-bold border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50">
+                            <i data-lucide="download" class="w-4 h-4"></i>
+                            <span>CSVエクスポート</span>
+                        </button>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="bg-slate-50 border-b border-slate-200 text-xs font-bold text-slate-500 uppercase tracking-wider">
+                                    <th class="py-4 px-6">決済日時</th>
+                                    <th class="py-4 px-6">伝票番号</th>
+                                    <th class="py-4 px-6">テーブル</th>
+                                    <th class="py-4 px-6">合計金額(税込)</th>
+                                    <th class="py-4 px-6">決済方法</th>
+                                    <th class="py-4 px-6 text-right">操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="sales-history-table-body" class="divide-y divide-slate-100 text-sm text-slate-700">
+                                <!-- JSで販売履歴を挿入 -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+        </div>
+    </main>
+
+    <!-- === 各種モーダルUI === -->
+
+    <!-- 1. 新規メニュー登録・編集用モーダル -->
+    <div id="menu-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden">
+        <div class="bg-white rounded-2xl max-w-md w-full mx-4 shadow-2xl border border-slate-100 overflow-hidden transform transition-all">
+            <div class="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+                <h3 id="menu-modal-title" class="font-bold text-slate-900 text-lg">メニュー新規登録</h3>
+                <button onclick="closeMenuModal()" class="text-slate-400 hover:text-slate-600">
+                    <i data-lucide="x" class="w-6 h-6"></i>
+                </button>
+            </div>
+            <form id="menu-form" onsubmit="handleMenuFormSubmit(event)" class="p-6 space-y-4">
+                <input type="hidden" id="menu-edit-id">
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">商品名</label>
+                    <input type="text" id="menu-input-name" required placeholder="例: 極み牛カルビ丼" class="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">カテゴリー</label>
+                        <select id="menu-input-category" class="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                            <option value="food">フード</option>
+                            <option value="drink">ドリンク</option>
+                            <option value="dessert">デザート</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">単価 (円・税込)</label>
+                        <input type="number" id="menu-input-price" required min="0" placeholder="1280" class="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">商品説明</label>
+                    <textarea id="menu-input-desc" placeholder="素材や調理法、アレルギー表示など" class="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none h-20 resize-none"></textarea>
+                </div>
+                <div class="flex items-center space-x-2 pt-2">
+                    <input type="checkbox" id="menu-input-available" checked class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 h-4 w-4">
+                    <label for="menu-input-available" class="text-sm font-medium text-slate-700">即時提供可能 (品切れにしない)</label>
+                </div>
+                <div class="pt-4 border-t border-slate-100 flex justify-end space-x-3">
+                    <button type="button" onclick="closeMenuModal()" class="px-4 py-2 border border-slate-200 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-50">キャンセル</button>
+                    <button type="submit" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-semibold shadow-sm transition">登録する</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 2. 会計処理 / 簡易POSレジ決済モーダル -->
+    <div id="checkout-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden">
+        <div class="bg-white rounded-2xl max-w-lg w-full mx-4 shadow-2xl border border-slate-100 overflow-hidden transform transition-all grid grid-cols-1 md:grid-cols-12">
+            <!-- 左側：お会計内訳 -->
+            <div class="md:col-span-7 p-6 border-r border-slate-100">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="font-bold text-slate-900 text-lg">お会計レジ</h3>
+                    <span id="checkout-table-label" class="bg-indigo-100 text-indigo-800 text-xs font-bold px-2.5 py-1 rounded-full"></span>
+                </div>
+                <div id="checkout-items-summary" class="space-y-3 max-h-56 overflow-y-auto mb-4 border-b border-slate-100 pb-4 text-sm text-slate-600">
+                    <!-- JSで明細行 -->
+                </div>
+                <div class="space-y-1.5 text-sm mb-4">
+                    <div class="flex justify-between">
+                        <span class="text-slate-500">小計 (税別)</span>
+                        <span id="checkout-subtotal" class="font-medium text-slate-800">¥0</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-slate-500">内消費税 (10%)</span>
+                        <span id="checkout-tax" class="font-medium text-slate-800">¥0</span>
+                    </div>
+                    <div class="flex justify-between text-base font-bold pt-2 border-t border-dashed border-slate-200">
+                        <span class="text-slate-900">合計請求額</span>
+                        <span id="checkout-total" class="text-indigo-600 text-lg">¥0</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 右側：決済アクション -->
+            <div class="md:col-span-5 p-6 bg-slate-50 flex flex-col justify-between">
+                <div class="space-y-4">
+                    <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider">決済手段の選択</label>
+                    <div class="space-y-2">
+                        <button onclick="setPaymentMethod('cash')" id="pay-cash" class="pay-method-btn w-full flex items-center justify-between p-3 rounded-xl border-2 border-indigo-600 bg-white shadow-sm font-semibold text-slate-800 text-sm">
+                            <span class="flex items-center"><i data-lucide="banknote" class="w-4 h-4 mr-2 text-emerald-500"></i>現金</span>
+                            <i data-lucide="check-circle" class="w-4 h-4 text-indigo-600"></i>
+                        </button>
+                        <button onclick="setPaymentMethod('credit')" id="pay-credit" class="pay-method-btn w-full flex items-center justify-between p-3 rounded-xl border border-slate-200 bg-white hover:border-slate-300 transition text-slate-700 text-sm">
+                            <span class="flex items-center"><i data-lucide="credit-card" class="w-4 h-4 mr-2 text-indigo-500"></i>クレジットカード</span>
+                        </button>
+                        <button onclick="setPaymentMethod('qr')" id="pay-qr" class="pay-method-btn w-full flex items-center justify-between p-3 rounded-xl border border-slate-200 bg-white hover:border-slate-300 transition text-slate-700 text-sm">
+                            <span class="flex items-center"><i data-lucide="qr-code" class="w-4 h-4 mr-2 text-amber-500"></i>QR決済</span>
+                        </button>
+                    </div>
+
+                    <!-- 現金時のみ、お釣り計算を表示 -->
+                    <div id="cash-calculator" class="space-y-3 pt-2">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">お預かり金額</label>
+                            <input type="number" id="cash-received" oninput="calculateChange()" class="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-sm font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="0">
+                        </div>
+                        <div class="flex justify-between text-sm">
+                            <span class="text-slate-500 font-medium">お釣り</span>
+                            <span id="cash-change" class="font-extrabold text-rose-600 text-base">¥0</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="space-y-2 pt-6">
+                    <button onclick="processCheckout()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 px-4 rounded-xl shadow-sm transition text-sm flex items-center justify-center space-x-1.5">
+                        <i data-lucide="check" class="w-4 h-4"></i>
+                        <span>会計を完了・領収</span>
+                    </button>
+                    <button onclick="closeCheckoutModal()" class="w-full bg-white border border-slate-200 hover:bg-slate-100 text-slate-600 font-semibold py-2 px-4 rounded-xl transition text-xs text-center">
+                        閉じる
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. 通知メッセージ用トースト（画面右上に一時表示） -->
+    <div id="toast" class="fixed top-6 right-6 z-50 transform translate-y-[-100px] opacity-0 transition-all duration-300 flex items-center space-x-2 bg-slate-900 text-white px-4 py-3 rounded-xl shadow-2xl">
+        <div id="toast-icon-bg" class="p-1 rounded-lg">
+            <i id="toast-icon" data-lucide="info" class="w-5 h-5"></i>
+        </div>
+        <p id="toast-message" class="text-sm font-semibold"></p>
+    </div>
+
+    <!-- === JAVASCRIPT LOGIC === -->
+    <script>
+        // --- 1. アプリ初期データ ---
+        
+        // 初期テーブルデータ
+        const DEFAULT_TABLES = [
+            { id: 'T-1', name: '1番テーブル', status: 'empty', capacity: 2, currentOrder: [] },
+            { id: 'T-2', name: '2番テーブル', status: 'empty', capacity: 4, currentOrder: [] },
+            { id: 'T-3', name: '3番テーブル', status: 'empty', capacity: 4, currentOrder: [] },
+            { id: 'T-4', name: '4番テーブル', status: 'empty', capacity: 6, currentOrder: [] },
+            { id: 'T-5', name: 'カウンター A', status: 'empty', capacity: 1, currentOrder: [] },
+            { id: 'T-6', name: 'カウンター B', status: 'empty', capacity: 1, currentOrder: [] },
+            { id: 'T-7', name: 'テラス席 A', status: 'empty', capacity: 4, currentOrder: [] },
+            { id: 'T-8', name: 'テラス席 B', status: 'empty', capacity: 4, currentOrder: [] }
+        ];
+
+        // 初期メニューデータ
+        const DEFAULT_MENU = [
+            { id: 'M-1', name: '極み黒毛和牛ハンバーグ', category: 'food', price: 1680, desc: '特製デミグラスソース。ライス付き', isAvailable: true },
+            { id: 'M-2', name: '濃厚完熟トマトパスタ', category: 'food', price: 1100, desc: 'イタリア産トマトと生バジル使用', isAvailable: true },
+            { id: 'M-3', name: '厳選豚のロースカツカレー', category: 'food', price: 1350, desc: 'じっくりスパイスを効かせた自家製ルー', isAvailable: true },
+            { id: 'M-4', name: 'シーザーサラダ (ラージ)', category: 'food', price: 880, desc: '自家製温玉のせ', isAvailable: true },
+            { id: 'M-5', name: 'プレミアム生ビール (中)', category: 'drink', price: 650, desc: 'キレとコク、上質なプレミアムビール', isAvailable: true },
+            { id: 'M-6', name: '自家製ハニーレモネード', category: 'drink', price: 500, desc: 'はちみつに漬け込んだフレッシュレモン', isAvailable: true },
+            { id: 'M-7', name: '挽きたて有機アイスコーヒー', category: 'drink', price: 450, desc: 'コロンビアブレンド', isAvailable: true },
+            { id: 'M-8', name: '宇治抹茶パフェ', category: 'dessert', price: 780, desc: '特製黒蜜と白玉添え', isAvailable: true },
+            { id: 'M-9', name: '濃厚バニラジェラート', category: 'dessert', price: 400, desc: 'マダガスカル産バニラビーンズ使用', isAvailable: true }
+        ];
+
+        // アプリの状態管理 (Local Storageに自動保存)
+        let state = {
+            tables: JSON.parse(localStorage.getItem('bistro_tables')) || DEFAULT_TABLES,
+            menu: JSON.parse(localStorage.getItem('bistro_menu')) || DEFAULT_MENU,
+            salesLog: JSON.parse(localStorage.getItem('bistro_sales')) || [],
+            cart: {}, // テーブルID => 現在カートに入っているアイテム { menuId, qty }
+            selectedTableId: 'T-1',
+            currentMenuCategory: 'all',
+            checkoutTableId: null,
+            selectedPaymentMethod: 'cash'
+        };
+
+        // --- 2. 状態保存ヘルパー ---
+        function saveState() {
+            localStorage.setItem('bistro_tables', JSON.stringify(state.tables));
+            localStorage.setItem('bistro_menu', JSON.stringify(state.menu));
+            localStorage.setItem('bistro_sales', JSON.stringify(state.salesLog));
+        }
+
+        // データを工場出荷時にリセットするプロンプト
+        function resetDataPrompt() {
+            if (confirm("本日の全ての売上、テーブル注文状態、追加したカスタムメニューを完全に初期化します。よろしいですか？")) {
+                localStorage.clear();
+                state.tables = JSON.parse(JSON.stringify(DEFAULT_TABLES));
+                state.menu = JSON.parse(JSON.stringify(DEFAULT_MENU));
+                state.salesLog = [];
+                state.cart = {};
+                state.selectedTableId = 'T-1';
+                saveState();
+                initApp();
+                showToast("システムデータを完全にリセットしました", "success");
+            }
+        }
+
+        // --- 3. アプリケーションの初期起動 ---
+        window.addEventListener('DOMContentLoaded', () => {
+            initApp();
+            startClock();
+        });
+
+        function initApp() {
+            // カートを初期化
+            state.tables.forEach(t => {
+                if (!state.cart[t.id]) state.cart[t.id] = [];
+            });
+
+            // UI描画
+            renderDashboard();
+            renderTables();
+            buildOrderView();
+            renderMenuSettings();
+            renderSalesLog();
+
+            // アイコンの有効化
+            lucide.createIcons();
+        }
+
+        // デジタル時計
+        function startClock() {
+            const timeEl = document.getElementById('current-time');
+            const dateEl = document.getElementById('current-date');
+            
+            const update = () => {
+                const now = new Date();
+                if (dateEl) dateEl.textContent = now.toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'short' });
+                if (timeEl) timeEl.textContent = now.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            };
+            update();
+            setInterval(update, 1000);
+        }
+
+        // --- モバイルサイドバー制御 ---
+        function toggleMobileSidebar(isOpen) {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebar-overlay');
+            if (isOpen) {
+                sidebar.classList.remove('-translate-x-full');
+                overlay.classList.remove('hidden');
+            } else {
+                sidebar.classList.add('-translate-x-full');
+                overlay.classList.add('hidden');
+            }
+        }
+
+        // --- 4. 画面（ビュー）の切り替え ---
+        function switchView(viewId) {
+            // モバイル用サイドバーが表示されていれば自動で閉じる
+            toggleMobileSidebar(false);
+
+            // 全てのビューセクションを非表示
+            const views = ['dashboard', 'tables', 'order', 'menu', 'sales'];
+            views.forEach(v => {
+                const section = document.getElementById(`view-${v}`);
+                if (section) section.classList.add('hidden');
+                
+                // ナビゲーションのハイライトリセット
+                const btn = document.getElementById(`nav-${v}`);
+                if (btn) {
+                    btn.className = "nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-sm font-medium transition text-slate-300 hover:bg-slate-800/50 hover:text-white";
+                }
+            });
+
+            // 指定ビューを表示
+            const targetView = document.getElementById(`view-${viewId}`);
+            if (targetView) targetView.classList.remove('hidden');
+
+            // ヘッダータイトル更新
+            const titles = {
+                dashboard: 'ダッシュボード',
+                tables: 'フロア座席ステータス',
+                order: 'オーダーエントリー入力',
+                menu: 'メニューマスタ設定',
+                sales: '本日の売上・POS履歴'
+            };
+            const headerTitle = document.getElementById('header-title');
+            if (headerTitle) headerTitle.textContent = titles[viewId] || '管理システム';
+
+            // 選択されたナビゲーションボタンをハイライト
+            const activeBtn = document.getElementById(`nav-${viewId}`);
+            if (activeBtn) {
+                activeBtn.className = "nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-sm font-medium transition bg-indigo-600 text-white shadow-md";
+            }
+
+            // ビュー個別更新フック
+            if (viewId === 'dashboard') {
+                renderDashboard();
+            } else if (viewId === 'tables') {
+                renderTables();
+            } else if (viewId === 'order') {
+                buildOrderView();
+            } else if (viewId === 'menu') {
+                renderMenuSettings();
+            } else if (viewId === 'sales') {
+                renderSalesLog();
+            }
+
+            // Lucideアイコン再描画
+            lucide.createIcons();
+        }
+
+        // --- 5. ダッシュボード表示ロジック ---
+        function renderDashboard() {
+            // 1. 売上サマリー計算
+            const todaySales = state.salesLog.reduce((sum, item) => sum + item.total, 0);
+            const statSalesEl = document.getElementById('stat-sales');
+            if (statSalesEl) statSalesEl.textContent = `¥${todaySales.toLocaleString()}`;
+
+            // 2. テーブル稼働率
+            const occupiedCount = state.tables.filter(t => t.status !== 'empty').length;
+            const occupancyRate = state.tables.length > 0 ? Math.round((occupiedCount / state.tables.length) * 100) : 0;
+            
+            const statOccupancyEl = document.getElementById('stat-occupancy');
+            if (statOccupancyEl) statOccupancyEl.textContent = `${occupancyRate}%`;
+            
+            const statOccupancyDetailEl = document.getElementById('stat-occupancy-detail');
+            if (statOccupancyDetailEl) statOccupancyDetailEl.textContent = `${occupiedCount} / ${state.tables.length} テーブル`;
+
+            // 3. アクティブオーダー数
+            const activeOrders = state.tables.filter(t => t.status === 'ordered' || t.status === 'waiting-food').length;
+            const statOrdersEl = document.getElementById('stat-orders');
+            if (statOrdersEl) statOrdersEl.textContent = `${activeOrders} 件`;
+
+            // 4. 客単価
+            const avgSpend = state.salesLog.length > 0 ? Math.round(todaySales / state.salesLog.length) : 0;
+            const statAvgSpendEl = document.getElementById('stat-avg-spend');
+            if (statAvgSpendEl) statAvgSpendEl.textContent = `¥${avgSpend.toLocaleString()}`;
+
+            // 5. テーブル一覧表示 (フロアマップのプレビュー)
+            const dGrid = document.getElementById('dashboard-tables-grid');
+            if (dGrid) {
+                dGrid.innerHTML = '';
+                state.tables.forEach(table => {
+                    const badge = getStatusBadgeInfo(table.status);
+                    const orderSum = table.currentOrder.reduce((acc, curr) => acc + (curr.price * curr.qty), 0);
+
+                    const card = document.createElement('div');
+                    card.className = `p-4 rounded-xl border bg-white flex flex-col justify-between shadow-sm cursor-pointer transition transform hover:scale-[1.02] ${badge.borderClass}`;
+                    card.onclick = () => {
+                        state.selectedTableId = table.id;
+                        switchView('order');
+                    };
+
+                    card.innerHTML = `
+                        <div>
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="font-bold text-slate-800">${table.name}</span>
+                                <span class="text-[10px] px-2 py-0.5 rounded-full font-bold ${badge.bgClass} ${badge.textClass}">
+                                    ${badge.label}
+                                </span>
+                            </div>
+                            <p class="text-xs text-slate-400">定員: ${table.capacity}名</p>
+                        </div>
+                        <div class="mt-4 flex items-center justify-between text-xs">
+                            <span class="font-bold text-slate-500">${table.status !== 'empty' ? '積算金額:' : '利用なし'}</span>
+                            <span class="font-bold ${table.status !== 'empty' ? 'text-indigo-600' : 'text-slate-400'}">
+                                ${table.status !== 'empty' ? `¥${orderSum.toLocaleString()}` : '-'}
+                            </span>
+                        </div>
+                    `;
+                    dGrid.appendChild(card);
+                });
+            }
+
+            // 6. 直近の会計履歴
+            const recentSalesBody = document.getElementById('dashboard-recent-sales');
+            if (recentSalesBody) {
+                recentSalesBody.innerHTML = '';
+                const recentSales = [...state.salesLog].reverse().slice(0, 5);
+                if (recentSales.length === 0) {
+                    recentSalesBody.innerHTML = `<tr><td colspan="5" class="py-6 text-center text-slate-400">本日の会計履歴はありません</td></tr>`;
+                } else {
+                    recentSales.forEach(log => {
+                        const paymentLabels = { cash: '現金', credit: 'カード', qr: 'QR' };
+                        const itemSummary = log.items.length > 0 
+                            ? `${log.items[0].name} ${log.items.length > 1 ? `外${log.items.length - 1}件` : ''}`
+                            : '注文なし';
+
+                        const row = document.createElement('tr');
+                        row.className = "hover:bg-slate-50/80 transition";
+                        row.innerHTML = `
+                            <td class="py-3 px-4 font-medium text-slate-500">${log.time}</td>
+                            <td class="py-3 px-4 font-bold text-slate-700">${log.tableName}</td>
+                            <td class="py-3 px-4 text-slate-600 truncate max-w-xs">${itemSummary}</td>
+                            <td class="py-3 px-4 text-right font-bold text-slate-900">¥${log.total.toLocaleString()}</td>
+                            <td class="py-3 px-4">
+                                <span class="px-2 py-0.5 rounded text-xs font-semibold ${log.paymentMethod === 'cash' ? 'bg-emerald-100 text-emerald-800' : 'bg-blue-100 text-blue-800'}">
+                                    ${paymentLabels[log.paymentMethod] || '不明'}
+                                </span>
+                            </td>
+                        `;
+                        recentSalesBody.appendChild(row);
+                    });
+                }
+            }
+
+            // 7. 人気商品ランキング計算
+            const popularContainer = document.getElementById('dashboard-popular-items');
+            if (popularContainer) {
+                popularContainer.innerHTML = '';
+                const itemQuantities = {};
+                state.salesLog.forEach(log => {
+                    log.items.forEach(item => {
+                        itemQuantities[item.name] = (itemQuantities[item.name] || 0) + item.qty;
+                    });
+                });
+
+                const sortedItems = Object.entries(itemQuantities)
+                    .map(([name, qty]) => ({ name, qty }))
+                    .sort((a, b) => b.qty - a.qty)
+                    .slice(0, 4);
+
+                if (sortedItems.length === 0) {
+                    popularContainer.innerHTML = `<p class="text-xs text-slate-400 py-4 text-center">売上集計後に表示されます</p>`;
+                } else {
+                    sortedItems.forEach((item, index) => {
+                        const colors = ['bg-amber-500', 'bg-slate-400', 'bg-amber-700', 'bg-slate-200'];
+                        popularContainer.innerHTML += `
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center space-x-3">
+                                    <span class="w-6 h-6 flex items-center justify-center rounded-full text-xs font-bold text-white ${colors[index] || 'bg-slate-300'}">
+                                        ${index + 1}
+                                    </span>
+                                    <span class="text-sm font-medium text-slate-700">${item.name}</span>
+                                </div>
+                                <span class="text-sm font-bold text-slate-900">${item.qty} 点</span>
+                            </div>
+                        `;
+                    });
+                }
+            }
+        }
+
+        // --- 6. テーブル管理（フロアマップ）ロジック ---
+        let currentTableFilter = 'all';
+
+        function filterTables(filter, event) {
+            currentTableFilter = filter;
+            document.querySelectorAll('.table-filter-btn').forEach(btn => {
+                btn.className = "table-filter-btn px-3 py-1 text-xs font-medium rounded-full text-slate-600 hover:bg-slate-100";
+            });
+            if (event && event.target) {
+                event.target.className = "table-filter-btn px-3 py-1 text-xs font-medium rounded-full bg-slate-900 text-white shadow-sm";
+            }
+            renderTables();
+        }
+
+        function renderTables() {
+            const grid = document.getElementById('tables-main-grid');
+            if (!grid) return;
+            grid.innerHTML = '';
+
+            state.tables.forEach(table => {
+                // フィルターの適用
+                if (currentTableFilter !== 'all') {
+                    if (currentTableFilter === 'empty' && table.status !== 'empty') return;
+                    if (currentTableFilter === 'ordered' && table.status !== 'ordered') return;
+                    if (currentTableFilter === 'waiting-food' && table.status !== 'waiting-food') return;
+                    if (currentTableFilter === 'waiting-bill' && table.status !== 'waiting-bill') return;
+                }
+
+                const badge = getStatusBadgeInfo(table.status);
+                const orderSum = table.currentOrder.reduce((acc, curr) => acc + (curr.price * curr.qty), 0);
+
+                const card = document.createElement('div');
+                card.className = `bg-white rounded-2xl shadow-sm border ${badge.borderClass} p-5 flex flex-col justify-between h-64 hover:shadow-md transition relative group`;
+
+                // クイックアクション用ボタンの出し分け
+                let actionBtnHTML = '';
+                if (table.status === 'empty') {
+                    actionBtnHTML = `
+                        <button onclick="startGuestSession('${table.id}')" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-2 rounded-xl text-xs transition flex items-center justify-center space-x-1">
+                            <i data-lucide="user-plus" class="w-3.5 h-3.5"></i>
+                            <span>客入れ (案内)</span>
+                        </button>
+                    `;
+                } else if (table.status === 'ordered') {
+                    actionBtnHTML = `
+                        <div class="grid grid-cols-2 gap-2 w-full">
+                            <button onclick="setTableStatus('${table.id}', 'waiting-food')" class="bg-amber-500 hover:bg-amber-600 text-white font-bold py-2 rounded-xl text-xs transition">配膳待ちへ</button>
+                            <button onclick="goToTableOrder('${table.id}')" class="bg-indigo-50 text-indigo-600 hover:bg-indigo-100 font-bold py-2 rounded-xl text-xs transition">追加注文</button>
+                        </div>
+                    `;
+                } else if (table.status === 'waiting-food') {
+                    actionBtnHTML = `
+                        <div class="grid grid-cols-2 gap-2 w-full">
+                            <button onclick="setTableStatus('${table.id}', 'waiting-bill')" class="bg-rose-500 hover:bg-rose-600 text-white font-bold py-2 rounded-xl text-xs transition">会計待ちへ</button>
+                            <button onclick="goToTableOrder('${table.id}')" class="bg-indigo-50 text-indigo-600 hover:bg-indigo-100 font-bold py-2 rounded-xl text-xs transition flex items-center justify-center"><i data-lucide="plus" class="w-3.5 h-3.5"></i></button>
+                        </div>
+                    `;
+                } else if (table.status === 'waiting-bill') {
+                    actionBtnHTML = `
+                        <button onclick="openCheckoutModal('${table.id}')" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl text-xs transition flex items-center justify-center space-x-1 shadow-sm">
+                            <i data-lucide="calculator" class="w-3.5 h-3.5"></i>
+                            <span>お会計精算レジ</span>
+                        </button>
+                    `;
+                }
+
+                // 注文商品のサマリー
+                let orderItemsText = '<span class="text-slate-400">利用されていません</span>';
+                if (table.currentOrder.length > 0) {
+                    orderItemsText = table.currentOrder.map(i => `${i.name} × ${i.qty}`).join(', ');
+                }
+
+                card.innerHTML = `
+                    <div class="space-y-3">
+                        <div class="flex items-start justify-between">
+                            <div>
+                                <h4 class="font-extrabold text-slate-800 text-base flex items-center">
+                                    <i data-lucide="armchair" class="w-4 h-4 mr-1 text-slate-400"></i>
+                                    ${table.name}
+                                </h4>
+                                <span class="text-xs text-slate-400">客席数上限: ${table.capacity}名</span>
+                            </div>
+                            <span class="text-xs px-2.5 py-1 rounded-full font-bold ${badge.bgClass} ${badge.textClass}">
+                                ${badge.label}
+                            </span>
+                        </div>
+
+                        <div class="bg-slate-50 p-2.5 rounded-lg text-xs">
+                            <div class="font-medium text-slate-500 mb-1">現在の注文内訳:</div>
+                            <div class="text-slate-700 line-clamp-3 leading-relaxed" title="${orderItemsText}">
+                                ${orderItemsText}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="space-y-3 pt-3 border-t border-slate-100">
+                        <div class="flex items-center justify-between text-xs">
+                            <span class="text-slate-400">合計金額:</span>
+                            <span class="font-extrabold text-slate-900 text-base">¥${orderSum.toLocaleString()}</span>
+                        </div>
+                        ${actionBtnHTML}
+                    </div>
+                `;
+
+                grid.appendChild(card);
+            });
+            lucide.createIcons();
+        }
+
+        // 席のステータスに応じたスタイリング・バッジ情報
+        function getStatusBadgeInfo(status) {
+            switch(status) {
+                case 'empty':
+                    return { label: '空席', bgClass: 'bg-slate-100', textClass: 'text-slate-600', borderClass: 'border-slate-200/80 hover:border-slate-300' };
+                case 'ordered':
+                    return { label: '注文中', bgClass: 'bg-blue-50', textClass: 'text-blue-700', borderClass: 'border-blue-200 hover:border-blue-300' };
+                case 'waiting-food':
+                    return { label: '配膳待ち', bgClass: 'bg-amber-50', textClass: 'text-amber-700', borderClass: 'border-amber-200 hover:border-amber-300' };
+                case 'waiting-bill':
+                    return { label: '会計待ち', bgClass: 'bg-rose-50', textClass: 'text-rose-700', borderClass: 'border-rose-200 hover:border-rose-300' };
+                default:
+                    return { label: '不明', bgClass: 'bg-slate-100', textClass: 'text-slate-600', borderClass: 'border-slate-200' };
+            }
+        }
+
+        function setTableStatus(tableId, status) {
+            const table = state.tables.find(t => t.id === tableId);
+            if (table) {
+                table.status = status;
+                saveState();
+                renderTables();
+                showToast(`${table.name} を「${getStatusBadgeInfo(status).label}」に更新しました`, "info");
+            }
+        }
+
+        function startGuestSession(tableId) {
+            const table = state.tables.find(t => t.id === tableId);
+            if (table) {
+                table.status = 'ordered';
+                table.currentOrder = []; // 注文を空にしてセッション開始
+                saveState();
+                showToast(`${table.name} のご利用を開始しました。`, "success");
+                goToTableOrder(tableId);
+            }
+        }
+
+        function goToTableOrder(tableId) {
+            state.selectedTableId = tableId;
+            switchView('order');
+        }
+
+
+        // --- 7. オーダーエントリー（注文入力）ロジック ---
+        function buildOrderView() {
+            // 1. テーブルドロップダウンの構築
+            const select = document.getElementById('order-table-select');
+            if (!select) return;
+            select.innerHTML = '';
+            
+            state.tables.forEach(t => {
+                const opt = document.createElement('option');
+                opt.value = t.id;
+                opt.textContent = `${t.name} (定員${t.capacity}名)`;
+                if (t.id === state.selectedTableId) {
+                    opt.selected = true;
+                }
+                select.appendChild(opt);
+            });
+
+            onOrderTableChange(false); // カート・メニューのレンダリング
+        }
+
+        // テーブル選択ドロップダウンが変更された時
+        function onOrderTableChange(resetFilters = true) {
+            const select = document.getElementById('order-table-select');
+            if (!select) return;
+            state.selectedTableId = select.value;
+
+            // 対象テーブルの情報をロード
+            const table = state.tables.find(t => t.id === state.selectedTableId);
+            if (!table) return;
+
+            // ステータスバッジの更新
+            const badge = getStatusBadgeInfo(table.status);
+            const statusBadge = document.getElementById('order-table-status-badge');
+            if (statusBadge) {
+                statusBadge.textContent = badge.label;
+                statusBadge.className = `px-2.5 py-1 rounded-full text-xs font-bold ${badge.bgClass} ${badge.textClass}`;
+            }
+
+            // 右側の伝票ラベル
+            const cartTableName = document.getElementById('cart-table-name');
+            if (cartTableName) cartTableName.textContent = table.name;
+
+            // カテゴリーを「すべて」に戻す
+            if (resetFilters) {
+                const firstCategoryBtn = document.querySelector('.category-btn');
+                filterMenuByCategory('all', { target: firstCategoryBtn });
+            } else {
+                renderOrderMenuGrid();
+            }
+
+            // 現在のカート入力内容の再描画
+            renderCart();
+        }
+
+        // メニューのカテゴリー切り替え
+        function filterMenuByCategory(category, event) {
+            state.currentMenuCategory = category;
+            
+            // タブハイライトの切り替え
+            const tabs = document.querySelectorAll('.category-btn');
+            tabs.forEach(t => {
+                t.className = "category-btn whitespace-nowrap px-4 py-2 text-sm font-medium rounded-full bg-white text-slate-600 border border-slate-200 hover:bg-slate-50";
+            });
+            if (event && event.target) {
+                event.target.className = "category-btn whitespace-nowrap px-4 py-2 text-sm font-medium rounded-full bg-indigo-600 text-white shadow-sm";
+            }
+
+            renderOrderMenuGrid();
+        }
+
+        // メニューリストのレンダリング
+        function renderOrderMenuGrid() {
+            const grid = document.getElementById('order-menu-grid');
+            if (!grid) return;
+            grid.innerHTML = '';
+
+            // 利用可能なメニューのフィルタリング
+            const items = state.menu.filter(item => {
+                if (!item.isAvailable) return false; // 品切れは除外
+                if (state.currentMenuCategory === 'all') return true;
+                return item.category === state.currentMenuCategory;
+            });
+
+            if (items.length === 0) {
+                grid.innerHTML = `<div class="col-span-full py-12 text-center text-slate-400">該当メニューがありません</div>`;
+                return;
+            }
+
+            items.forEach(item => {
+                const card = document.createElement('button');
+                card.onclick = () => addToCart(item.id);
+                card.className = "bg-white p-4 rounded-xl border border-slate-200/80 shadow-sm text-left hover:border-indigo-400 focus:outline-none transition-all flex flex-col justify-between h-36";
+                card.innerHTML = `
+                    <div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">${translateCategory(item.category)}</span>
+                        </div>
+                        <h4 class="font-bold text-slate-800 text-sm mt-1 line-clamp-2">${item.name}</h4>
+                    </div>
+                    <div class="flex items-center justify-between pt-2">
+                        <span class="text-sm font-extrabold text-indigo-600">¥${item.price.toLocaleString()}</span>
+                        <span class="p-1 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-100 transition">
+                            <i data-lucide="plus" class="w-4 h-4"></i>
+                        </span>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+            lucide.createIcons();
+        }
+
+        function translateCategory(cat) {
+            const m = { food: 'フード', drink: 'ドリンク', dessert: 'デザート' };
+            return m[cat] || cat;
+        }
+
+        // カートへ追加
+        function addToCart(menuId) {
+            const tableId = state.selectedTableId;
+            const menuItem = state.menu.find(m => m.id === menuId);
+            if (!menuItem) return;
+
+            // テーブルが現在「空席」の場合、自動的に利用セッションを開始
+            const table = state.tables.find(t => t.id === tableId);
+            if (table && table.status === 'empty') {
+                table.status = 'ordered';
+                table.currentOrder = [];
+                saveState();
+                buildOrderView(); // テーブルの見た目やバッジを即時アップデート
+            }
+
+            const currentCart = state.cart[tableId] || [];
+            const existing = currentCart.find(c => c.menuId === menuId);
+
+            if (existing) {
+                existing.qty++;
+            } else {
+                currentCart.push({ menuId: menuId, qty: 1 });
+            }
+
+            state.cart[tableId] = currentCart;
+            renderCart();
+        }
+
+        // カート数量変更
+        function updateCartQty(menuId, amount) {
+            const tableId = state.selectedTableId;
+            const currentCart = state.cart[tableId] || [];
+            const existing = currentCart.find(c => c.menuId === menuId);
+            
+            if (existing) {
+                existing.qty += amount;
+                if (existing.qty <= 0) {
+                    state.cart[tableId] = currentCart.filter(c => c.menuId !== menuId);
+                }
+            }
+            renderCart();
+        }
+
+        function clearCart() {
+            state.cart[state.selectedTableId] = [];
+            renderCart();
+        }
+
+        // カート（注文バッファ）の描画
+        function renderCart() {
+            const listContainer = document.getElementById('cart-items-list');
+            if (!listContainer) return;
+            listContainer.innerHTML = '';
+
+            const tableId = state.selectedTableId;
+            const currentCart = state.cart[tableId] || [];
+
+            let total = 0;
+
+            if (currentCart.length === 0) {
+                listContainer.innerHTML = `
+                    <div class="text-center py-12 text-slate-400">
+                        <i data-lucide="shopping-basket" class="w-12 h-12 mx-auto mb-2 opacity-50"></i>
+                        <p class="text-sm">選択中の追加注文はありません</p>
+                    </div>
+                `;
+                const cartTotalPriceEl = document.getElementById('cart-total-price');
+                if (cartTotalPriceEl) cartTotalPriceEl.textContent = `¥0`;
+                lucide.createIcons();
+            } else {
+                currentCart.forEach(item => {
+                    const menuItem = state.menu.find(m => m.id === item.menuId);
+                    if (!menuItem) return;
+
+                    const cost = menuItem.price * item.qty;
+                    total += cost;
+
+                    const row = document.createElement('div');
+                    row.className = "flex items-center justify-between border-b border-slate-100 pb-3";
+                    row.innerHTML = `
+                        <div class="flex-1 pr-4">
+                            <h5 class="text-sm font-bold text-slate-800 line-clamp-1">${menuItem.name}</h5>
+                            <span class="text-xs text-indigo-600 font-bold">¥${menuItem.price.toLocaleString()}</span>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <button onclick="updateCartQty('${item.menuId}', -1)" class="w-7 h-7 rounded-lg border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-100 transition font-bold">-</button>
+                            <span class="text-sm font-bold w-6 text-center text-slate-800">${item.qty}</span>
+                            <button onclick="updateCartQty('${item.menuId}', 1)" class="w-7 h-7 rounded-lg border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-100 transition font-bold">+</button>
+                        </div>
+                    `;
+                    listContainer.appendChild(row);
+                });
+                const cartTotalPriceEl = document.getElementById('cart-total-price');
+                if (cartTotalPriceEl) cartTotalPriceEl.textContent = `¥${total.toLocaleString()}`;
+            }
+
+            // 確定済みの注文履歴
+            const submittedContainer = document.getElementById('cart-submitted-list');
+            if (submittedContainer) {
+                submittedContainer.innerHTML = '';
+                const table = state.tables.find(t => t.id === tableId);
+                if (table && table.currentOrder.length > 0) {
+                    table.currentOrder.forEach(item => {
+                        submittedContainer.innerHTML += `
+                            <div class="flex justify-between items-center bg-slate-100/50 px-2 py-1 rounded mb-1">
+                                <span>${item.name} × ${item.qty}</span>
+                                <span class="text-slate-500">（確定済）</span>
+                            </div>
+                        `;
+                    });
+                } else {
+                    submittedContainer.innerHTML = `<span class="text-slate-400 italic">確定履歴なし</span>`;
+                }
+            }
+        }
+
+        // 注文確定（送信）
+        function submitOrder(nextStatus) {
+            const tableId = state.selectedTableId;
+            const currentCart = state.cart[tableId] || [];
+
+            if (currentCart.length === 0) {
+                showToast("注文商品がカートに入っていません", "error");
+                return;
+            }
+
+            const table = state.tables.find(t => t.id === tableId);
+            if (table) {
+                // カート内のアイテムを確定済みに追加
+                currentCart.forEach(cartItem => {
+                    const menuItem = state.menu.find(m => m.id === cartItem.menuId);
+                    if (menuItem) {
+                        const existing = table.currentOrder.find(o => o.menuId === cartItem.menuId);
+                        if (existing) {
+                            existing.qty += cartItem.qty;
+                        } else {
+                            table.currentOrder.push({
+                                menuId: cartItem.menuId,
+                                name: menuItem.name,
+                                price: menuItem.price,
+                                qty: cartItem.qty
+                            });
+                        }
+                    }
+                });
+
+                // テーブルステータスを配膳待ち、または指定の状態へ
+                table.status = nextStatus; 
+                
+                // カートのバッファをクリア
+                state.cart[tableId] = [];
+
+                saveState();
+                buildOrderView();
+                showToast(`${table.name} のオーダーを送信しました。`, "success");
+            }
+        }
+
+
+        // --- 8. 会計処理 (簡易POS) ロジック ---
+        function openCheckoutModal(tableId) {
+            const table = state.tables.find(t => t.id === tableId);
+            if (!table || table.currentOrder.length === 0) {
+                showToast("注文履歴がないため、お会計ができません", "error");
+                return;
+            }
+
+            state.checkoutTableId = tableId;
+            const labelEl = document.getElementById('checkout-table-label');
+            if (labelEl) labelEl.textContent = table.name;
+
+            // お会計内訳
+            const summaryContainer = document.getElementById('checkout-items-summary');
+            if (summaryContainer) {
+                summaryContainer.innerHTML = '';
+                let subtotal = 0;
+                table.currentOrder.forEach(item => {
+                    const itemTotal = item.price * item.qty;
+                    subtotal += itemTotal;
+
+                    summaryContainer.innerHTML += `
+                        <div class="flex justify-between items-center">
+                            <div>
+                                <p class="font-bold text-slate-800">${item.name}</p>
+                                <span class="text-xs text-slate-400">¥${item.price.toLocaleString()} × ${item.qty}</span>
+                            </div>
+                            <span class="font-semibold text-slate-700">¥${itemTotal.toLocaleString()}</span>
+                        </div>
+                    `;
+                });
+
+                // 計算 (税込計算・内訳表示)
+                const taxRate = 0.10;
+                const subtotalWithoutTax = Math.round(subtotal / (1 + taxRate));
+                const tax = subtotal - subtotalWithoutTax;
+
+                const subtotalEl = document.getElementById('checkout-subtotal');
+                const taxEl = document.getElementById('checkout-tax');
+                const totalEl = document.getElementById('checkout-total');
+
+                if (subtotalEl) subtotalEl.textContent = `¥${subtotalWithoutTax.toLocaleString()}`;
+                if (taxEl) taxEl.textContent = `¥${tax.toLocaleString()}`;
+                if (totalEl) totalEl.textContent = `¥${subtotal.toLocaleString()}`;
+            }
+
+            // デフォルトの決済手段（現金）に設定
+            setPaymentMethod('cash');
+
+            // 現金電卓のクリア
+            const receivedInput = document.getElementById('cash-received');
+            if (receivedInput) receivedInput.value = '';
+            
+            const changeEl = document.getElementById('cash-change');
+            if (changeEl) changeEl.textContent = `¥0`;
+
+            // モーダル表示
+            const modal = document.getElementById('checkout-modal');
+            if (modal) modal.classList.remove('hidden');
+            lucide.createIcons();
+        }
+
+        function closeCheckoutModal() {
+            const modal = document.getElementById('checkout-modal');
+            if (modal) modal.classList.add('hidden');
+            state.checkoutTableId = null;
+        }
+
+        function setPaymentMethod(method) {
+            state.selectedPaymentMethod = method;
+            
+            // ボタンのハイライト
+            document.querySelectorAll('.pay-method-btn').forEach(btn => {
+                btn.className = "pay-method-btn w-full flex items-center justify-between p-3 rounded-xl border border-slate-200 bg-white hover:border-slate-300 transition text-slate-700 text-sm";
+                // 既存のチェックマークアイコンを消去
+                const check = btn.querySelector('.text-indigo-600');
+                if (check) check.remove();
+            });
+
+            const activeBtn = document.getElementById(`pay-${method}`);
+            if (activeBtn) {
+                activeBtn.className = "pay-method-btn w-full flex items-center justify-between p-3 rounded-xl border-2 border-indigo-600 bg-white shadow-sm font-semibold text-slate-800 text-sm";
+                
+                // チェックを追加
+                const checkIcon = document.createElement('i');
+                checkIcon.setAttribute('data-lucide', 'check-circle');
+                checkIcon.className = "w-4 h-4 text-indigo-600";
+                activeBtn.appendChild(checkIcon);
+            }
+
+            // 現金電卓の表示トグル
+            const calc = document.getElementById('cash-calculator');
+            if (calc) {
+                if (method === 'cash') {
+                    calc.classList.remove('hidden');
+                } else {
+                    calc.classList.add('hidden');
+                }
+            }
+            lucide.createIcons();
+        }
+
+        function calculateChange() {
+            const table = state.tables.find(t => t.id === state.checkoutTableId);
+            if (!table) return;
+
+            const total = table.currentOrder.reduce((acc, curr) => acc + (curr.price * curr.qty), 0);
+            const receivedInput = document.getElementById('cash-received');
+            const received = receivedInput ? (parseInt(receivedInput.value) || 0) : 0;
+
+            const change = received - total;
+            const changeEl = document.getElementById('cash-change');
+
+            if (changeEl) {
+                if (change < 0) {
+                    changeEl.textContent = `不足: ¥${Math.abs(change).toLocaleString()}`;
+                    changeEl.className = "font-extrabold text-rose-500 text-base";
+                } else {
+                    changeEl.textContent = `お釣り: ¥${change.toLocaleString()}`;
+                    changeEl.className = "font-extrabold text-emerald-600 text-base";
+                }
+            }
+        }
+
+        // お会計の実行確定
+        function processCheckout() {
+            const tableId = state.checkoutTableId;
+            const table = state.tables.find(t => t.id === tableId);
+            if (!table) return;
+
+            const total = table.currentOrder.reduce((acc, curr) => acc + (curr.price * curr.qty), 0);
+            const receivedInput = document.getElementById('cash-received');
+            const received = receivedInput ? (parseInt(receivedInput.value) || 0) : 0;
+
+            // 現金の場合、お釣り不足チェック
+            if (state.selectedPaymentMethod === 'cash' && received < total) {
+                showToast("お預かり金額が不足しています", "error");
+                return;
+            }
+
+            // 売上ログに登録するデータ
+            const timestamp = new Date();
+            const timeString = timestamp.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
+            
+            const salesRecord = {
+                id: `BILL-${Date.now()}`,
+                date: timestamp.toLocaleDateString('ja-JP'),
+                time: timeString,
+                tableId: tableId,
+                tableName: table.name,
+                items: [...table.currentOrder],
+                total: total,
+                paymentMethod: state.selectedPaymentMethod
+            };
+
+            // 1. 売上ログ追加
+            state.salesLog.push(salesRecord);
+
+            // 2. テーブルクリア
+            table.status = 'empty';
+            table.currentOrder = [];
+            state.cart[tableId] = []; // カートバッファもクリア
+
+            // 保存 & 更新
+            saveState();
+            closeCheckoutModal();
+            initApp();
+
+            showToast(`${table.name} のお会計を完了しました`, "success");
+        }
+
+
+        // --- 9. メニュー設定ロジック ---
+        function renderMenuSettings() {
+            const tableBody = document.getElementById('menu-management-table');
+            if (!tableBody) return;
+            tableBody.innerHTML = '';
+
+            state.menu.forEach(item => {
+                const row = document.createElement('tr');
+                row.className = "hover:bg-slate-50/60 transition";
+                row.innerHTML = `
+                    <td class="py-4 px-6 font-bold text-slate-800">
+                        ${item.name}
+                        ${item.desc ? `<p class="text-xs text-slate-400 font-normal mt-0.5">${item.desc}</p>` : ''}
+                    </td>
+                    <td class="py-4 px-6 text-slate-500">${translateCategory(item.category)}</td>
+                    <td class="py-4 px-6 text-right font-semibold text-slate-900">¥${item.price.toLocaleString()}</td>
+                    <td class="py-4 px-6 text-center">
+                        <button onclick="toggleMenuAvailability('${item.id}')" class="px-3 py-1 rounded-full text-xs font-bold ${item.isAvailable ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200'}">
+                            ${item.isAvailable ? '提供中' : '品切れ'}
+                        </button>
+                    </td>
+                    <td class="py-4 px-6 text-right space-x-2">
+                        <button onclick="openMenuModal('${item.id}')" class="text-indigo-600 hover:text-indigo-900 font-semibold text-xs">編集</button>
+                        <button onclick="deleteMenuItem('${item.id}')" class="text-rose-500 hover:text-rose-800 font-semibold text-xs">削除</button>
+                    </td>
+                `;
+                tableBody.appendChild(row);
+            });
+        }
+
+        // 品切れ切替トグル
+        function toggleMenuAvailability(id) {
+            const item = state.menu.find(m => m.id === id);
+            if (item) {
+                item.isAvailable = !item.isAvailable;
+                saveState();
+                renderMenuSettings();
+                renderOrderMenuGrid();
+                showToast(`「${item.name}」を ${item.isAvailable ? '提供中' : '品切れ'} に変更しました`, "info");
+            }
+        }
+
+        // 新規追加 / 編集モーダル開く
+        function openMenuModal(id = null) {
+            const modal = document.getElementById('menu-modal');
+            const title = document.getElementById('menu-modal-title');
+            if (!modal) return;
+            
+            // フォーム初期化
+            document.getElementById('menu-form').reset();
+            document.getElementById('menu-edit-id').value = '';
+
+            if (id) {
+                // 編集モード
+                const item = state.menu.find(m => m.id === id);
+                if (item) {
+                    if (title) title.textContent = "メニュー項目を編集";
+                    document.getElementById('menu-edit-id').value = item.id;
+                    document.getElementById('menu-input-name').value = item.name;
+                    document.getElementById('menu-input-category').value = item.category;
+                    document.getElementById('menu-input-price').value = item.price;
+                    document.getElementById('menu-input-desc').value = item.desc || '';
+                    document.getElementById('menu-input-available').checked = item.isAvailable;
+                }
+            } else {
+                // 新規追加モード
+                if (title) title.textContent = "メニュー新規追加登録";
+                document.getElementById('menu-input-available').checked = true;
+            }
+
+            modal.classList.remove('hidden');
+        }
+
+        function closeMenuModal() {
+            const modal = document.getElementById('menu-modal');
+            if (modal) modal.classList.add('hidden');
+        }
+
+        // メニュー登録/保存のハンドリング
+        function handleMenuFormSubmit(event) {
+            event.preventDefault();
+
+            const editId = document.getElementById('menu-edit-id').value;
+            const name = document.getElementById('menu-input-name').value.trim();
+            const category = document.getElementById('menu-input-category').value;
+            const price = parseInt(document.getElementById('menu-input-price').value) || 0;
+            const desc = document.getElementById('menu-input-desc').value.trim();
+            const isAvailable = document.getElementById('menu-input-available').checked;
+
+            if (editId) {
+                // 編集実行
+                const item = state.menu.find(m => m.id === editId);
+                if (item) {
+                    item.name = name;
+                    item.category = category;
+                    item.price = price;
+                    item.desc = desc;
+                    item.isAvailable = isAvailable;
+                    showToast("メニュー項目を更新しました", "success");
+                }
+            } else {
+                // 新規追加
+                const newItem = {
+                    id: `M-${Date.now()}`,
+                    name,
+                    category,
+                    price,
+                    desc,
+                    isAvailable
+                };
+                state.menu.push(newItem);
+                showToast("新しいメニューを追加しました", "success");
+            }
+
+            saveState();
+            closeMenuModal();
+            renderMenuSettings();
+            renderOrderMenuGrid();
+        }
+
+        // メニュー削除
+        function deleteMenuItem(id) {
+            const item = state.menu.find(m => m.id === id);
+            if (!item) return;
+
+            if (confirm(`本当にメニュー「${item.name}」を削除しますか？`)) {
+                state.menu = state.menu.filter(m => m.id !== id);
+                saveState();
+                renderMenuSettings();
+                renderOrderMenuGrid();
+                showToast("メニューを削除しました", "info");
+            }
+        }
+
+
+        // --- 10. 売上履歴 / POSデータ閲覧ロジック ---
+        function renderSalesLog() {
+            const todaySales = state.salesLog.reduce((sum, item) => sum + item.total, 0);
+            const totalCount = state.salesLog.length;
+            const avgSpend = totalCount > 0 ? Math.round(todaySales / totalCount) : 0;
+
+            const salesSummaryTotalEl = document.getElementById('sales-summary-total');
+            const salesSummaryCountEl = document.getElementById('sales-summary-count');
+            const salesSummaryAvgEl = document.getElementById('sales-summary-avg');
+
+            if (salesSummaryTotalEl) salesSummaryTotalEl.textContent = `¥${todaySales.toLocaleString()}`;
+            if (salesSummaryCountEl) salesSummaryCountEl.textContent = `総決済件数: ${totalCount} 件`;
+            if (salesSummaryAvgEl) salesSummaryAvgEl.textContent = `¥${avgSpend.toLocaleString()}`;
+
+            // テーブル稼働率反映
+            const occupiedCount = state.tables.filter(t => t.status !== 'empty').length;
+            const occupancyRate = state.tables.length > 0 ? Math.round((occupiedCount / state.tables.length) * 100) : 0;
+            const salesSummaryOccupancyEl = document.getElementById('sales-summary-occupancy');
+            if (salesSummaryOccupancyEl) salesSummaryOccupancyEl.textContent = `${occupancyRate}%`;
+
+            // 目標進捗バーの更新 (目標: 15万円)
+            const target = 150000;
+            const percentage = Math.min(Math.round((todaySales / target) * 100), 100);
+            const salesProgressPercentageEl = document.getElementById('sales-progress-percentage');
+            const salesProgressBarEl = document.getElementById('sales-progress-bar');
+            
+            if (salesProgressPercentageEl) salesProgressPercentageEl.textContent = `${percentage}%`;
+            if (salesProgressBarEl) salesProgressBarEl.style.width = `${percentage}%`;
+
+            // 決済方法別集計
+            const payStats = { cash: 0, credit: 0, qr: 0 };
+            state.salesLog.forEach(log => {
+                if (payStats[log.paymentMethod] !== undefined) {
+                    payStats[log.paymentMethod] += log.total;
+                }
+            });
+
+            const methodContainer = document.getElementById('payment-method-stats');
+            if (methodContainer) {
+                methodContainer.innerHTML = `
+                    <div class="flex items-center justify-between text-xs">
+                        <span class="text-slate-500 font-bold flex items-center"><i data-lucide="banknote" class="w-4 h-4 mr-1 text-emerald-500"></i>現金決済:</span>
+                        <span class="font-extrabold text-slate-800 text-sm">¥${payStats.cash.toLocaleString()}</span>
+                    </div>
+                    <div class="flex items-center justify-between text-xs">
+                        <span class="text-slate-500 font-bold flex items-center"><i data-lucide="credit-card" class="w-4 h-4 mr-1 text-indigo-500"></i>カード決済:</span>
+                        <span class="font-extrabold text-slate-800 text-sm">¥${payStats.credit.toLocaleString()}</span>
+                    </div>
+                    <div class="flex items-center justify-between text-xs">
+                        <span class="text-slate-500 font-bold flex items-center"><i data-lucide="qr-code" class="w-4 h-4 mr-1 text-amber-500"></i>QR・電子決済:</span>
+                        <span class="font-extrabold text-slate-800 text-sm">¥${payStats.qr.toLocaleString()}</span>
+                    </div>
+                `;
+            }
+
+            // 会計ログテーブル
+            const tbody = document.getElementById('sales-history-table-body');
+            if (tbody) {
+                tbody.innerHTML = '';
+                const paymentLabels = { cash: '現金', credit: 'クレジットカード', qr: 'QRコード' };
+
+                if (state.salesLog.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="6" class="py-8 text-center text-slate-400">本日はまだ決済ログが記録されていません</td></tr>`;
+                } else {
+                    [...state.salesLog].reverse().forEach(log => {
+                        const row = document.createElement('tr');
+                        row.className = "hover:bg-slate-50/60 transition";
+                        row.innerHTML = `
+                            <td class="py-4 px-6 text-slate-500">${log.date} ${log.time}</td>
+                            <td class="py-4 px-6 font-mono text-xs text-slate-400">${log.id}</td>
+                            <td class="py-4 px-6 font-bold text-slate-800">${log.tableName}</td>
+                            <td class="py-4 px-6 font-extrabold text-indigo-600">¥${log.total.toLocaleString()}</td>
+                            <td class="py-4 px-6 text-xs font-semibold text-slate-600">${paymentLabels[log.paymentMethod] || '不明'}</td>
+                            <td class="py-4 px-6 text-right">
+                                <button onclick="refundTransaction('${log.id}')" class="text-rose-600 hover:text-rose-900 text-xs font-semibold">会計取消(返金)</button>
+                            </td>
+                        `;
+                        tbody.appendChild(row);
+                    });
+                }
+            }
+            lucide.createIcons();
+        }
+
+        // 取引の取り消し・返品処理
+        function refundTransaction(id) {
+            const item = state.salesLog.find(l => l.id === id);
+            if (!item) return;
+
+            if (confirm(`【警告】伝票番号 [${id}] の会計情報を取り消しますか？\n(取り消した金額は売上集計からマイナスされます。)`)) {
+                state.salesLog = state.salesLog.filter(l => l.id !== id);
+                saveState();
+                initApp();
+                showToast("取引の取り消し処理を完了しました", "info");
+            }
+        }
+
+        // 売上データのCSVエクスポート（ブラウザ完結型）
+        function exportSalesHistory() {
+            if (state.salesLog.length === 0) {
+                showToast("出力できる売上データがありません", "error");
+                return;
+            }
+
+            let csvContent = "data:text/csv;charset=utf-8,";
+            csvContent += "決済日時,伝票ID,テーブル名,合計金額,決済手段\r\n";
+
+            state.salesLog.forEach(log => {
+                const methodLabel = { cash: '現金', credit: 'クレジットカード', qr: 'QR決済' }[log.paymentMethod] || log.paymentMethod;
+                const row = `"${log.date} ${log.time}","${log.id}","${log.tableName}",${log.total},"${methodLabel}"`;
+                csvContent += row + "\r\n";
+            });
+
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", `BistroSuite_sales_${new Date().toISOString().slice(0,10)}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            showToast("CSVダウンロードを開始しました", "success");
+        }
+
+
+        // --- 11. 通知トースト表示ロジック ---
+        function showToast(message, type = "info") {
+            const toast = document.getElementById('toast');
+            const toastMsg = document.getElementById('toast-message');
+            const iconBg = document.getElementById('toast-icon-bg');
+            const icon = document.getElementById('toast-icon');
+
+            if (!toast || !toastMsg || !iconBg || !icon) return;
+
+            toastMsg.textContent = message;
+
+            // スタイル配色＆アイコン選択
+            if (type === "success") {
+                iconBg.className = "p-1.5 rounded-lg bg-emerald-500/20 text-emerald-400";
+                icon.setAttribute('data-lucide', 'check-circle-2');
+            } else if (type === "error") {
+                iconBg.className = "p-1.5 rounded-lg bg-rose-500/20 text-rose-400";
+                icon.setAttribute('data-lucide', 'alert-triangle');
+            } else {
+                iconBg.className = "p-1.5 rounded-lg bg-indigo-500/20 text-indigo-400";
+                icon.setAttribute('data-lucide', 'info');
+            }
+
+            // ルシードアイコンの再ビルド
+            lucide.createIcons();
+
+            // アニメーション表示
+            toast.className = "fixed top-6 right-6 z-50 transform translate-y-0 opacity-100 transition-all duration-300 flex items-center space-x-2 bg-slate-900 text-white px-5 py-3 rounded-xl shadow-2xl border border-slate-800";
+            
+            // 3秒後に非表示
+            setTimeout(() => {
+                toast.className = "fixed top-6 right-6 z-50 transform translate-y-[-100px] opacity-0 transition-all duration-300 flex items-center space-x-2 bg-slate-900 text-white px-5 py-3 rounded-xl shadow-2xl";
+            }, 3000);
+        }
+
+    </script>
+</body>
+</html>
