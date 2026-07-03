@@ -68,5 +68,12 @@
     "url": "./web-code/",
     "category": "utility",
     "tags": ["開発"]
+  },
+  {
+    "name": "飲食店用業務アプリ",
+    "description": "オーダー、レジなどの機能を備えたウェブアプリ",
+    "url": "./restaurant",
+    "category": "Business",
+    "tags": ["仕事"]
   }
 ]
