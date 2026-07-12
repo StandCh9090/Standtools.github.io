@@ -75,5 +75,12 @@
     "url": "./restaurant",
     "category": "Business",
     "tags": ["仕事"]
+  },
+  {
+    "name": "ウェブドキュメントエディター",
+    "description": "シンプルでWordファイル形式にも対応したドキュメントエディター",
+    "url": "./web-word/",
+    "category": "editor",
+    "tags": ["シンプル", "エディター", "Word"]
   }
 ]
