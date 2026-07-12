@@ -1,0 +1,271 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>MiniWord — Word風エディタ</title>
+  <style>
+    :root{--bg:#f3f4f6;--panel:#ffffff;--accent:#0ea5a4;--muted:#6b7280}
+    body{font-family: system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Noto Sans JP,Arial; margin:0; background:var(--bg); color:#111}
+    header{background:linear-gradient(90deg,#063741, #0ea5a4); color:white; padding:12px 18px; display:flex; align-items:center; gap:12px}
+    header h1{font-size:16px; margin:0}
+    .container{max-width:1100px; margin:18px auto; padding:12px}
+    .toolbar{background:var(--panel); border:1px solid #e6e6e6; border-radius:8px; padding:8px; display:flex; gap:8px; flex-wrap:wrap}
+    .group{display:flex; gap:6px; align-items:center}
+    button,select,input[type="color"]{background:#fff; border:1px solid #ddd; padding:6px 8px; border-radius:6px; cursor:pointer}
+    button.active{background:var(--accent); color:white; border-color:transparent}
+    button:active{transform:translateY(1px)}
+    #editor{min-height:420px; border:1px solid #ddd; background:white; padding:18px; margin-top:12px; border-radius:8px; box-shadow:0 2px 8px rgba(0,0,0,0.03); overflow:auto}
+    #status{margin-top:8px; color:var(--muted); font-size:13px}
+    input[type=file]{display:none}
+    .btn-icon{display:inline-flex; align-items:center; justify-content:center; width:36px; height:36px}
+    .select-small{padding:6px}
+    @media (max-width:700px){.container{padding:8px} .toolbar{gap:6px}}
+  </style>
+</head>
+<body>
+  <header>
+    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect width="24" height="24" rx="4" fill="white"/><path d="M6 7h12v2H6zM6 11h12v2H6zM6 15h8v2H6z" fill="#0ea5a4"/></svg>
+    <h1>MiniWord — Word風エディタ（HTML単一ファイル）</h1>
+  </header>
+
+  <main class="container">
+    <div class="toolbar" role="toolbar" aria-label="エディタツールバー">
+      <div class="group">
+        <button type="button" id="btn-bold" title="太字 (Ctrl/Cmd+B)">B</button>
+        <button type="button" id="btn-italic" title="斜体 (Ctrl/Cmd+I)">I</button>
+        <button type="button" id="btn-underline" title="下線 (Ctrl/Cmd+U)">U</button>
+      </div>
+
+      <div class="group">
+        <select id="font-family" class="select-small" title="フォント">
+          <option value="">デフォルト</option>
+          <option value="'Noto Sans JP', sans-serif">Noto Sans JP</option>
+          <option value="'Times New Roman', serif">Times</option>
+          <option value="'Courier New', monospace">Courier</option>
+        </select>
+        <select id="font-size" class="select-small" title="フォントサイズ">
+          <option value="">自動</option>
+          <option value="12px">12</option>
+          <option value="14px">14</option>
+          <option value="16px">16</option>
+          <option value="20px">20</option>
+          <option value="24px">24</option>
+        </select>
+        <input type="color" id="font-color" title="文字色">
+      </div>
+
+      <div class="group">
+        <button id="btn-left" title="左揃え">≡</button>
+        <button id="btn-center" title="中央揃え">≣</button>
+        <button id="btn-right" title="右揃え">≡</button>
+      </div>
+
+      <div class="group">
+        <button id="btn-ol" title="番号リスト">1.</button>
+        <button id="btn-ul" title="箇条書き">•</button>
+        <button id="btn-indent" title="インデント">→</button>
+        <button id="btn-outdent" title="アウトデント">←</button>
+      </div>
+
+      <div class="group">
+        <button id="btn-insert-image" title="画像挿入">🖼</button>
+        <input type="file" id="file-image" accept="image/*">
+      </div>
+
+      <div class="group">
+        <button id="btn-find" title="検索">🔎</button>
+        <button id="btn-replace" title="置換">🔁</button>
+      </div>
+
+      <div class="group" style="margin-left:auto">
+        <button id="btn-new">新規</button>
+        <button id="btn-open">開く</button>
+        <input type="file" id="file-open" accept="text/html,text/*">
+        <button id="btn-save-html">HTML保存</button>
+        <button id="btn-save-doc">Word形式で保存</button>
+        <button id="btn-print">印刷</button>
+      </div>
+    </div>
+
+    <div id="editor" contenteditable="true" spellcheck="true" aria-label="本文エリア">
+      <h2>ここに文章を入力してください</h2>
+      <p>MiniWord は軽量な Word 風エディタのデモです。ツールバーから書式を適用できます。</p>
+    </div>
+
+    <div id="status">文字数: <span id="count-chars">0</span> / 単語数: <span id="count-words">0</span></div>
+  </main>
+
+  <script>
+    // ヘルパー
+    const editor = document.getElementById('editor');
+    const countChars = document.getElementById('count-chars');
+    const countWords = document.getElementById('count-words');
+
+    function updateCounts(){
+      const text = editor.innerText || '';
+      countChars.textContent = text.length;
+      const words = text.trim().split(/\s+/).filter(Boolean).length;
+      countWords.textContent = words;
+    }
+
+    // 初回カウント
+    updateCounts();
+    editor.addEventListener('input', updateCounts);
+
+    // 基本の書式コマンド 押下時
+    function exec(cmd, value=null){
+      document.execCommand(cmd, false, value);
+      editor.focus();
+      updateActiveStates();
+      updateCounts();
+    }
+
+    document.getElementById('btn-bold').addEventListener('click', ()=>exec('bold'));
+    document.getElementById('btn-italic').addEventListener('click', ()=>exec('italic'));
+    document.getElementById('btn-underline').addEventListener('click', ()=>exec('underline'));
+
+    document.getElementById('btn-left').addEventListener('click', ()=>exec('justifyLeft'));
+    document.getElementById('btn-center').addEventListener('click', ()=>exec('justifyCenter'));
+    document.getElementById('btn-right').addEventListener('click', ()=>exec('justifyRight'));
+
+    document.getElementById('btn-ol').addEventListener('click', ()=>exec('insertOrderedList'));
+    document.getElementById('btn-ul').addEventListener('click', ()=>exec('insertUnorderedList'));
+    document.getElementById('btn-indent').addEventListener('click', ()=>exec('indent'));
+    document.getElementById('btn-outdent').addEventListener('click', ()=>exec('outdent'));
+
+    // フォント変更
+    document.getElementById('font-family').addEventListener('change', (e)=>{
+      const v = e.target.value;
+      if(v) exec('fontName', v);
+    });
+    document.getElementById('font-size').addEventListener('change', (e)=>{
+      const v = e.target.value;
+      if(v) exec('fontSize', 4); // execCommand の fontSize は 1-7 の値。代替で span を使う
+      if(v){
+        // 選択範囲に span をラップしてサイズを直接指定する簡易処理
+        document.execCommand('fontSize', false, '7');
+        const fontElems = editor.querySelectorAll('font[size="7"]');
+        fontElems.forEach(el=>{ el.removeAttribute('size'); el.style.fontSize = v; });
+      }
+    });
+    document.getElementById('font-color').addEventListener('change', (e)=> exec('foreColor', e.target.value));
+
+    // 画像挿入
+    document.getElementById('btn-insert-image').addEventListener('click', ()=> document.getElementById('file-image').click());
+    document.getElementById('file-image').addEventListener('change', function(){
+      const f = this.files[0];
+      if(!f) return;
+      const reader = new FileReader();
+      reader.onload = ()=> exec('insertImage', reader.result);
+      reader.readAsDataURL(f);
+      this.value = '';
+    });
+
+    // 新規 / 開く / 保存
+    document.getElementById('btn-new').addEventListener('click', ()=>{
+      if(confirm('新しい文書を作成します。現在の内容は失われますがよいですか？')){
+        editor.innerHTML = '<p></p>';
+        updateCounts();
+      }
+    });
+
+    const fileOpen = document.getElementById('file-open');
+    document.getElementById('btn-open').addEventListener('click', ()=> fileOpen.click());
+    fileOpen.addEventListener('change', function(){
+      const f = this.files[0];
+      if(!f) return;
+      const reader = new FileReader();
+      reader.onload = ()=>{
+        // シンプルに読み込んで editor に挿入
+        editor.innerHTML = reader.result;
+        updateCounts();
+      };
+      reader.readAsText(f);
+      this.value = '';
+    });
+
+    function download(filename, content, type){
+      const blob = new Blob([content], {type:type});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    document.getElementById('btn-save-html').addEventListener('click', ()=>{
+      const html = `<!doctype html>\n<html><head><meta charset="utf-8"><title>Document</title></head><body>\n${editor.innerHTML}\n</body></html>`;
+      download('document.html', html, 'text/html');
+    });
+
+    document.getElementById('btn-save-doc').addEventListener('click', ()=>{
+      // 簡易的に .doc として保存 (Word が開ける HTML)
+      const header = '<html><head><meta charset="utf-8"></head><body>';
+      const footer = '</body></html>';
+      const full = header + editor.innerHTML + footer;
+      download('document.doc', full, 'application/msword');
+    });
+
+    document.getElementById('btn-print').addEventListener('click', ()=>{
+      const printWin = window.open('', '_blank');
+      printWin.document.write('<html><head><meta charset="utf-8"><title>印刷</title></head><body>'+editor.innerHTML+'</body></html>');
+      printWin.document.close();
+      printWin.print();
+    });
+
+    // 検索と置換（単純なダイアログ実装）
+    document.getElementById('btn-find').addEventListener('click', ()=>{
+      const q = prompt('検索語を入力');
+      if(!q) return;
+      const html = editor.innerHTML;
+      const re = new RegExp(q.replace(/[.*+?^${}()|[\\]\\]/g,'\\$&'), 'gi');
+      // 簡易ハイライト
+      editor.innerHTML = html.replace(re, m => `<mark>${m}</mark>`);
+    });
+    document.getElementById('btn-replace').addEventListener('click', ()=>{
+      const q = prompt('検索語を入力'); if(q==null) return;
+      const r = prompt('置換後の語を入力'); if(r==null) return;
+      const html = editor.innerHTML;
+      const re = new RegExp(q.replace(/[.*+?^${}()|[\\]\\]/g,'\\$&'), 'gi');
+      editor.innerHTML = html.replace(re, r);
+      updateCounts();
+    });
+
+    // キーボードショートカット
+    document.addEventListener('keydown', (e)=>{
+      if((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'b'){ e.preventDefault(); exec('bold'); }
+      if((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'i'){ e.preventDefault(); exec('italic'); }
+      if((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'u'){ e.preventDefault(); exec('underline'); }
+    });
+
+    // 選択状態に基づくボタンのアクティブ化
+    function updateActiveStates(){
+      const map = [ ['bold','btn-bold'], ['italic','btn-italic'], ['underline','btn-underline'] ];
+      map.forEach(([cmd,id])=>{
+        const el = document.getElementById(id);
+        try{
+          const state = document.queryCommandState(cmd);
+          el.classList.toggle('active', state);
+        }catch(e){ }
+      });
+    }
+    editor.addEventListener('keyup', updateActiveStates);
+    editor.addEventListener('mouseup', updateActiveStates);
+
+    // 初期フォーカス
+    editor.focus();
+
+    // 最後に読み込み時の単純な自動保存（セッション）
+    const autosaveKey = 'miniw_word_autosave_v1';
+    window.addEventListener('beforeunload', ()=>{
+      try{ localStorage.setItem(autosaveKey, editor.innerHTML); }catch(e){}
+    });
+    // 復元プロンプト
+    const saved = localStorage.getItem(autosaveKey);
+    if(saved && saved.trim() !== editor.innerHTML.trim()){
+      if(confirm('前回の編集内容を復元しますか？')) editor.innerHTML = saved;
+      updateCounts();
+    }
+  </script>
+</body>
+</html>
