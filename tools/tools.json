@@ -82,5 +82,12 @@
     "url": "./web-word/",
     "category": "editor",
     "tags": ["シンプル", "エディター", "Word"]
+  },
+  {
+    "name": "ToDo",
+    "description": "シンプルで使いやすいToDoアプリ",
+    "url": "./todo/",
+    "category": "utility",
+    "tags": ["シンプル"]
   }
 ]
