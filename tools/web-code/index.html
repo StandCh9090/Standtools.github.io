@@ -1,96 +1,778 @@
 <!DOCTYPE html>
 <html lang="ja">
-
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>WebCode Studio Mobile</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Monaco Editor Loaders -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.39.0/min/vs/loader.min.js"></script>
+    <!-- JSZip for Export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <style>
+        /* カスタムスクロールバー */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1e1e1e;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #424242;
+            border-radius: 3px;
+        }
 
-<meta charset="UTF-8">
+        /* スプリッター（PC用） */
+        .resizer {
+            width: 4px;
+            cursor: col-resize;
+            background-color: #2d2d2d;
+            transition: background-color 0.2s;
+        }
+        .resizer:hover, .resizing {
+            background-color: #007acc;
+        }
 
-<title>Web Code</title>
+        #editor-container {
+            width: 100%;
+            height: 100%;
+        }
 
-<link rel="stylesheet" href="style.css">
-
+        /* スマホ向けにスクロールやビューを固定 */
+        body, html {
+            position: fixed;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+    </style>
 </head>
+<body class="bg-[#1e1e1e] text-gray-300 font-sans h-full flex flex-col select-none">
 
+    <!-- メニューバー / ヘッダー -->
+    <header class="h-10 bg-[#3c3c3c] text-xs flex items-center justify-between px-3 border-b border-[#252526] shrink-0">
+        <div class="flex items-center space-x-2">
+            <div class="flex items-center space-x-1.5 text-blue-400 font-bold mr-1">
+                <i class="fa-solid fa-code text-sm"></i>
+                <span class="hidden sm:inline">WebCode Studio</span>
+            </div>
+            <button id="btn-run" class="flex items-center space-x-1 px-2.5 py-1 bg-green-600 active:bg-green-700 text-white rounded transition text-xs">
+                <i class="fa-solid fa-play text-[10px]"></i>
+                <span>実行</span>
+            </button>
+            <button id="btn-download" class="flex items-center space-x-1 px-2 py-1 bg-[#4d4d4d] active:bg-[#5a5a5a] text-white rounded transition text-xs">
+                <i class="fa-solid fa-download text-[10px]"></i>
+                <span class="hidden md:inline">出力</span>
+            </button>
+            <label class="flex items-center space-x-1 px-2 py-1 bg-[#4d4d4d] active:bg-[#5a5a5a] text-white rounded transition text-xs cursor-pointer">
+                <i class="fa-solid fa-upload text-[10px]"></i>
+                <span class="hidden md:inline">開く</span>
+                <input type="file" id="file-input" class="hidden" accept=".html,.css,.js,.json,.txt">
+            </label>
+        </div>
+        <div class="flex items-center space-x-2">
+            <button id="btn-theme" class="p-1.5 text-gray-300 active:text-white transition">
+                <i class="fa-solid fa-moon"></i>
+            </button>
+            <button id="btn-new-file" class="p-1.5 text-blue-400 active:text-white transition" title="新規ファイル作成">
+                <i class="fa-solid fa-file-circle-plus text-sm"></i>
+            </button>
+        </div>
+    </header>
 
+    <!-- メインコンテンツ (PCでは左右分割、スマホではタブ切り替え) -->
+    <div class="flex-1 flex overflow-hidden relative" id="workspace">
+        
+        <!-- サイドバー (ファイルツリー - PC用アクティビティバー含む) -->
+        <div id="sidebar" class="w-full md:w-56 bg-[#252526] flex flex-col border-r border-[#1e1e1e] absolute md:relative z-20 h-full transition-transform duration-200 transform translate-x-full md:translate-x-0">
+            <div class="h-9 px-3 flex items-center justify-between text-xs font-bold tracking-wider text-gray-400 border-b border-[#1e1e1e] bg-[#2d2d2d] md:bg-transparent">
+                <span>ファイルエクスプローラー</span>
+                <span class="text-[10px] bg-blue-600 text-white px-1.5 py-0.5 rounded md:hidden">スマホ表示中</span>
+            </div>
+            
+            <!-- ファイルリスト -->
+            <div id="file-list" class="flex-1 overflow-y-auto py-2 text-sm md:text-xs">
+                <!-- 動的に生成されます -->
+            </div>
+        </div>
+
+        <!-- エディタエリア -->
+        <div id="editor-section" class="w-full md:flex-1 flex flex-col h-full absolute md:relative z-10 md:z-auto transition-transform duration-200 transform translate-x-0">
+            <!-- タブバー -->
+            <div id="tab-bar" class="h-9 bg-[#2d2d2d] flex items-center overflow-x-auto border-b border-[#1e1e1e] shrink-0">
+                <!-- 動的に生成されます -->
+            </div>
+
+            <!-- モナコエディタコンテナ -->
+            <div class="flex-1 relative overflow-hidden">
+                <div id="editor-container"></div>
+            </div>
+        </div>
+
+        <!-- PC用リサイズハンドル -->
+        <div class="resizer hidden md:block" id="resizer"></div>
+
+        <!-- プレビューエリア -->
+        <div id="preview-section" class="w-full md:w-1/2 flex flex-col bg-white h-full absolute md:relative z-10 md:z-auto transition-transform duration-200 transform translate-x-full md:translate-x-0">
+            <div class="h-9 bg-[#2d2d2d] text-gray-300 text-xs px-3 flex items-center justify-between border-b border-[#1e1e1e] shrink-0">
+                <span class="flex items-center space-x-2">
+                    <i class="fa-solid fa-globe text-blue-400"></i>
+                    <span>プレビュー</span>
+                </span>
+                <div class="flex items-center space-x-3">
+                    <button id="btn-refresh" class="p-1 active:text-white" title="再読み込み">
+                        <i class="fa-solid fa-rotate-right"></i>
+                    </button>
+                    <button id="btn-open-window" class="p-1 active:text-white" title="新しいタブで開く">
+                        <i class="fa-solid fa-up-right-from-square"></i>
+                    </button>
+                </div>
+            </div>
+            <iframe id="preview-frame" class="w-full flex-1 border-none bg-white"></iframe>
+        </div>
+
+        <!-- コンソールパネル (スマホ・PC共通) -->
+        <div id="console-section" class="w-full bg-[#1e1e1e] text-gray-300 flex flex-col h-full absolute z-30 transition-transform duration-200 transform translate-x-full md:hidden">
+            <div class="h-9 bg-[#2d2d2d] text-xs px-3 flex items-center justify-between border-b border-[#252526]">
+                <span class="flex items-center space-x-2 font-bold">
+                    <i class="fa-solid fa-terminal text-yellow-500"></i>
+                    <span>コンソール出力</span>
+                </span>
+                <button id="btn-clear-console" class="p-1 text-gray-400 hover:text-white text-xs">
+                    <i class="fa-solid fa-trash-can"></i> クリア
+                </button>
+            </div>
+            <div id="console-logs" class="flex-1 overflow-y-auto p-3 font-mono text-xs space-y-1.5 bg-[#121212]">
+                <!-- コンソールログ表示エリア -->
+            </div>
+        </div>
+
+    </div>
+
+    <!-- ステータスバー (PC表示時) -->
+    <footer class="h-6 bg-[#007acc] text-white text-[11px] px-3 hidden md:flex items-center justify-between shrink-0">
+        <div class="flex items-center space-x-4">
+            <span class="flex items-center space-x-1">
+                <i class="fa-solid fa-code-branch"></i>
+                <span>main*</span>
+            </span>
+            <span id="status-file-info">index.html</span>
+        </div>
+        <div class="flex items-center space-x-4">
+            <span id="status-cursor">行 1, 列 1</span>
+            <span>UTF-8</span>
+            <span id="status-language">HTML</span>
+        </div>
+    </footer>
+
+    <!-- モバイル用 ボトムナビゲーションバー -->
+    <nav class="h-12 bg-[#2d2d2d] border-t border-[#1e1e1e] flex md:hidden items-center justify-around shrink-0 z-40 text-xs">
+        <button id="nav-files" class="flex flex-col items-center justify-center w-full h-full text-gray-400 active:text-white">
+            <i class="fa-regular fa-folder-open text-base mb-0.5"></i>
+            <span class="text-[10px]">ファイル</span>
+        </button>
+        <button id="nav-editor" class="flex flex-col items-center justify-center w-full h-full text-blue-400 font-bold active:text-white">
+            <i class="fa-solid fa-code text-base mb-0.5"></i>
+            <span class="text-[10px]">コード</span>
+        </button>
+        <button id="nav-preview" class="flex flex-col items-center justify-center w-full h-full text-gray-400 active:text-white">
+            <i class="fa-solid fa-eye text-base mb-0.5"></i>
+            <span class="text-[10px]">表示</span>
+        </button>
+        <button id="nav-console" class="flex flex-col items-center justify-center w-full h-full text-gray-400 active:text-white relative">
+            <i class="fa-solid fa-terminal text-base mb-0.5"></i>
+            <span class="text-[10px]">ログ</span>
+            <span id="console-badge" class="hidden absolute top-1 right-6 w-2 h-2 bg-yellow-500 rounded-full"></span>
+        </button>
+    </nav>
+
+    <!-- JavaScript ロジック -->
+    <script>
+        // 初期ファイル構成
+        const defaultFiles = {
+            'index.html': {
+                name: 'index.html',
+                language: 'html',
+                icon: 'fa-brands fa-html5 text-orange-500',
+                content: `<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>スマホ対応Webアプリ</title>
+  <link rel="stylesheet" href="style.css">
+</head>
 <body>
+  <div class="card">
+    <h1>Hello Mobile World!</h1>
+    <p>スマートフォンから直接コードの編集と実行が可能です。</p>
+    <button id="demo-btn">タップしてみてね</button>
+  </div>
 
-
-<div class="toolbar">
-
-
-<button onclick="openFolder()">
-📂 開く
-</button>
-
-
-<button onclick="newFile()">
-📄 新規
-</button>
-
-
-<button onclick="newFolder()">
-📁 フォルダ
-</button>
-
-
-<button onclick="renameItem()">
-✏変更
-</button>
-
-
-<button onclick="deleteItem()">
-🗑削除
-</button>
-
-
-<button onclick="saveFile()">
-💾保存
-</button>
-
-
-<span id="saveStatus"></span>
-
-</div>
-
-
-
-
-<div class="app">
-
-
-<div id="files"></div>
-
-
-
-<div class="main">
-
-
-<div id="tabs"></div>
-
-
-<div id="editor"></div>
-
-
-<iframe id="preview"></iframe>
-
-
-</div>
-
-
-
-</div>
-
-
-
-
-<script src="
-https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/loader.js">
-</script>
-
-
-<script src="editor.js"></script>
-
-
+  <script src="script.js"><\/script>
 </body>
+</html>`
+            },
+            'style.css': {
+                name: 'style.css',
+                language: 'css',
+                icon: 'fa-brands fa-css3-alt text-blue-500',
+                content: `body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background-color: #f3f4f6;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  margin: 0;
+  padding: 16px;
+  box-sizing: border-box;
+}
 
+.card {
+  background: white;
+  padding: 24px;
+  border-radius: 16px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  text-align: center;
+  width: 100%;
+  max-width: 360px;
+}
+
+h1 {
+  color: #2563eb;
+  font-size: 1.5rem;
+  margin-bottom: 12px;
+}
+
+p {
+  color: #4b5563;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+button {
+  background-color: #2563eb;
+  color: white;
+  border: none;
+  width: 100%;
+  padding: 12px;
+  border-radius: 8px;
+  font-weight: bold;
+  font-size: 0.95rem;
+  margin-top: 16px;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+button:active {
+  opacity: 0.8;
+}`
+            },
+            'script.js': {
+                name: 'script.js',
+                language: 'javascript',
+                icon: 'fa-brands fa-js text-yellow-400',
+                content: `// ボタンタップの処理
+document.addEventListener('DOMContentLoaded', () => {
+  const button = document.getElementById('demo-btn');
+  
+  button.addEventListener('click', () => {
+    console.log('ボタンがタップされました！');
+    alert('スマートフォンから正常に実行されました！');
+  });
+});`
+            }
+        };
+
+        let files = { ...defaultFiles };
+        let activeFile = 'index.html';
+        let openTabs = ['index.html', 'style.css', 'script.js'];
+        let editor = null;
+        let isDarkTheme = true;
+        let currentMobileView = 'editor'; // 'files', 'editor', 'preview', 'console'
+
+        // Monaco Editor の初期化
+        require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.39.0/min/vs' }});
+        
+        require(['vs/editor/editor.main'], function() {
+            editor = monaco.editor.create(document.getElementById('editor-container'), {
+                value: files[activeFile].content,
+                language: files[activeFile].language,
+                theme: 'vs-dark',
+                automaticLayout: true,
+                fontSize: 13,
+                minimap: { enabled: false }, // スマホ向けにミニマップOFF
+                scrollBeyondLastLine: false,
+                tabSize: 2,
+                lineNumbersMinChars: 3,
+            });
+
+            // エディタ内容変更
+            editor.onDidChangeModelContent(() => {
+                if (files[activeFile]) {
+                    files[activeFile].content = editor.getValue();
+                    updatePreview();
+                }
+            });
+
+            // カーソル位置情報
+            editor.onDidChangeCursorPosition(() => {
+                const position = editor.getPosition();
+                document.getElementById('status-cursor').innerText = `行 ${position.lineNumber}, 列 ${position.column}`;
+            });
+
+            renderFileList();
+            renderTabs();
+            updatePreview();
+        });
+
+        // モバイルナビゲーション切り替え
+        function switchMobileView(view) {
+            currentMobileView = view;
+
+            const sidebar = document.getElementById('sidebar');
+            const editorSection = document.getElementById('editor-section');
+            const previewSection = document.getElementById('preview-section');
+            const consoleSection = document.getElementById('console-section');
+
+            const navFiles = document.getElementById('nav-files');
+            const navEditor = document.getElementById('nav-editor');
+            const navPreview = document.getElementById('nav-preview');
+            const navConsole = document.getElementById('nav-console');
+
+            // 全エリアの非表示クラス設定
+            [sidebar, editorSection, previewSection, consoleSection].forEach(el => {
+                el.classList.add('translate-x-full');
+                el.classList.remove('translate-x-0');
+            });
+
+            // ナビボタンのスタイルリセット
+            [navFiles, navEditor, navPreview, navConsole].forEach(btn => {
+                btn.className = 'flex flex-col items-center justify-center w-full h-full text-gray-400 active:text-white';
+            });
+
+            // 選択ビューの表示
+            if (view === 'files') {
+                sidebar.classList.remove('translate-x-full');
+                sidebar.classList.add('translate-x-0');
+                navFiles.className = 'flex flex-col items-center justify-center w-full h-full text-blue-400 font-bold';
+            } else if (view === 'editor') {
+                editorSection.classList.remove('translate-x-full');
+                editorSection.classList.add('translate-x-0');
+                navEditor.className = 'flex flex-col items-center justify-center w-full h-full text-blue-400 font-bold';
+            } else if (view === 'preview') {
+                previewSection.classList.remove('translate-x-full');
+                previewSection.classList.add('translate-x-0');
+                navPreview.className = 'flex flex-col items-center justify-center w-full h-full text-blue-400 font-bold';
+            } else if (view === 'console') {
+                consoleSection.classList.remove('translate-x-full');
+                consoleSection.classList.add('translate-x-0');
+                navConsole.className = 'flex flex-col items-center justify-center w-full h-full text-blue-400 font-bold';
+                document.getElementById('console-badge').classList.add('hidden');
+            }
+        }
+
+        document.getElementById('nav-files').addEventListener('click', () => switchMobileView('files'));
+        document.getElementById('nav-editor').addEventListener('click', () => switchMobileView('editor'));
+        document.getElementById('nav-preview').addEventListener('click', () => switchMobileView('preview'));
+        document.getElementById('nav-console').addEventListener('click', () => switchMobileView('console'));
+
+        // ファイルリストレンダリング
+        function renderFileList() {
+            const fileListContainer = document.getElementById('file-list');
+            fileListContainer.innerHTML = '';
+
+            Object.keys(files).forEach(filename => {
+                const file = files[filename];
+                const isSelected = filename === activeFile;
+
+                const item = document.createElement('div');
+                item.className = `flex items-center justify-between px-4 py-2.5 cursor-pointer active:bg-[#2a2d2e] ${isSelected ? 'bg-[#37373d] text-white' : 'text-gray-300'}`;
+                
+                item.innerHTML = `
+                    <div class="flex items-center space-x-3 truncate">
+                        <i class="${file.icon} text-base"></i>
+                        <span class="truncate font-medium">${filename}</span>
+                    </div>
+                    <button class="delete-btn hover:text-red-400 p-2 text-gray-400" title="削除">
+                        <i class="fa-solid fa-xmark text-sm"></i>
+                    </button>
+                `;
+
+                item.addEventListener('click', (e) => {
+                    if (!e.target.closest('.delete-btn')) {
+                        switchFile(filename);
+                        // スマホではファイル選択後自動でエディタに切り替え
+                        if (window.innerWidth < 768) {
+                            switchMobileView('editor');
+                        }
+                    }
+                });
+
+                const deleteBtn = item.querySelector('.delete-btn');
+                deleteBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    deleteFile(filename);
+                });
+
+                fileListContainer.appendChild(item);
+            });
+        }
+
+        // タブレンダリング
+        function renderTabs() {
+            const tabBar = document.getElementById('tab-bar');
+            tabBar.innerHTML = '';
+
+            openTabs.forEach(filename => {
+                const file = files[filename];
+                if (!file) return;
+
+                const isActive = filename === activeFile;
+                const tab = document.createElement('div');
+                tab.className = `flex items-center space-x-2 px-3 py-2 text-xs border-r border-[#1e1e1e] cursor-pointer min-w-[110px] max-w-[180px] shrink-0 ${
+                    isActive ? 'bg-[#1e1e1e] text-white border-t-2 border-t-blue-500' : 'bg-[#2d2d2d] text-gray-400'
+                }`;
+
+                tab.innerHTML = `
+                    <i class="${file.icon}"></i>
+                    <span class="truncate flex-1">${filename}</span>
+                    <button class="close-tab hover:text-white text-gray-400 p-1" title="閉じる">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                `;
+
+                tab.addEventListener('click', (e) => {
+                    if (!e.target.closest('.close-tab')) {
+                        switchFile(filename);
+                    }
+                });
+
+                const closeBtn = tab.querySelector('.close-tab');
+                closeBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    closeTab(filename);
+                });
+
+                tabBar.appendChild(tab);
+            });
+        }
+
+        // ファイル切替
+        function switchFile(filename) {
+            if (!files[filename]) return;
+
+            if (!openTabs.includes(filename)) {
+                openTabs.push(filename);
+            }
+
+            activeFile = filename;
+
+            if (editor) {
+                const model = editor.getModel();
+                monaco.editor.setModelLanguage(model, files[filename].language);
+                editor.setValue(files[filename].content);
+            }
+
+            document.getElementById('status-file-info').innerText = filename;
+            document.getElementById('status-language').innerText = files[filename].language.toUpperCase();
+
+            renderFileList();
+            renderTabs();
+        }
+
+        // タブを閉じる
+        function closeTab(filename) {
+            openTabs = openTabs.filter(tab => tab !== filename);
+            if (activeFile === filename) {
+                if (openTabs.length > 0) {
+                    switchFile(openTabs[openTabs.length - 1]);
+                } else {
+                    activeFile = '';
+                    if (editor) editor.setValue('');
+                }
+            }
+            renderTabs();
+        }
+
+        // ファイル作成
+        document.getElementById('btn-new-file').addEventListener('click', () => {
+            const fileName = prompt('ファイル名を入力してください (例: style2.css):');
+            if (!fileName) return;
+
+            if (files[fileName]) {
+                alert('同じ名前のファイルが存在します');
+                return;
+            }
+
+            let language = 'plaintext';
+            let icon = 'fa-regular fa-file text-gray-400';
+
+            if (fileName.endsWith('.html')) {
+                language = 'html';
+                icon = 'fa-brands fa-html5 text-orange-500';
+            } else if (fileName.endsWith('.css')) {
+                language = 'css';
+                icon = 'fa-brands fa-css3-alt text-blue-500';
+            } else if (fileName.endsWith('.js')) {
+                language = 'javascript';
+                icon = 'fa-brands fa-js text-yellow-400';
+            }
+
+            files[fileName] = {
+                name: fileName,
+                language: language,
+                icon: icon,
+                content: ''
+            };
+
+            switchFile(fileName);
+            if (window.innerWidth < 768) {
+                switchMobileView('editor');
+            }
+        });
+
+        // ファイル削除
+        function deleteFile(filename) {
+            if (Object.keys(files).length <= 1) {
+                alert('最後のファイルは削除できません');
+                return;
+            }
+
+            if (confirm(`ファイル "${filename}" を削除しますか？`)) {
+                delete files[filename];
+                closeTab(filename);
+                renderFileList();
+                updatePreview();
+            }
+        }
+
+        // プレビューおよびコンソールログインターセプト
+        function updatePreview() {
+            const iframe = document.getElementById('preview-frame');
+            const htmlContent = files['index.html'] ? files['index.html'].content : '';
+            const cssContent = files['style.css'] ? `<style>${files['style.css'].content}</style>` : '';
+            const jsContent = files['script.js'] ? files['script.js'].content : '';
+
+            // console.log をキャプチャするスクリプトを注入
+            const consoleCaptureScript = `
+                <script>
+                    (function() {
+                        const _log = console.log;
+                        const _error = console.error;
+                        
+                        console.log = function(...args) {
+                            _log.apply(console, args);
+                            window.parent.postMessage({ type: 'log', data: args.join(' ') }, '*');
+                        };
+
+                        console.error = function(...args) {
+                            _error.apply(console, args);
+                            window.parent.postMessage({ type: 'error', data: args.join(' ') }, '*');
+                        };
+
+                        window.onerror = function(msg, url, line) {
+                            window.parent.postMessage({ type: 'error', data: msg + ' (行: ' + line + ')' }, '*');
+                            return false;
+                        };
+                    })();
+                <\/script>
+            `;
+
+            const combinedContent = `
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                    ${consoleCaptureScript}
+                    ${cssContent}
+                </head>
+                <body>
+                    ${htmlContent}
+                    <script>${jsContent}<\/script>
+                </body>
+                </html>
+            `;
+
+            const doc = iframe.contentWindow.document;
+            doc.open();
+            doc.write(combinedContent);
+            doc.close();
+        }
+
+        // プレビューからのログ受信用イベント
+        window.addEventListener('message', (event) => {
+            if (event.data && (event.data.type === 'log' || event.data.type === 'error')) {
+                addConsoleLog(event.data.data, event.data.type);
+            }
+        });
+
+        function addConsoleLog(message, type) {
+            const logsContainer = document.getElementById('console-logs');
+            const logItem = document.createElement('div');
+            logItem.className = `py-1 border-b border-[#2a2a2a] break-all ${type === 'error' ? 'text-red-400 bg-red-950/20 px-1' : 'text-gray-300'}`;
+            logItem.innerText = `> ${message}`;
+            logsContainer.appendChild(logItem);
+            logsContainer.scrollTop = logsContainer.scrollHeight;
+
+            if (currentMobileView !== 'console') {
+                document.getElementById('console-badge').classList.remove('hidden');
+            }
+        }
+
+        // コンソールクリア
+        document.getElementById('btn-clear-console').addEventListener('click', () => {
+            document.getElementById('console-logs').innerHTML = '';
+        });
+
+        // プレビュー更新ボタン
+        document.getElementById('btn-refresh').addEventListener('click', updatePreview);
+        document.getElementById('btn-run').addEventListener('click', () => {
+            updatePreview();
+            if (window.innerWidth < 768) {
+                switchMobileView('preview');
+            }
+        });
+
+        // 新しいウィンドウで開く
+        document.getElementById('btn-open-window').addEventListener('click', () => {
+            const htmlContent = files['index.html'] ? files['index.html'].content : '';
+            const cssContent = files['style.css'] ? `<style>${files['style.css'].content}</style>` : '';
+            const jsContent = files['script.js'] ? `<script>${files['script.js'].content}<\/script>` : '';
+
+            const win = window.open();
+            win.document.write(`
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                    ${cssContent}
+                </head>
+                <body>${htmlContent}${jsContent}</body>
+                </html>
+            `);
+        });
+
+        // ZIPダウンロード
+        document.getElementById('btn-download').addEventListener('click', () => {
+            const zip = new JSZip();
+            Object.keys(files).forEach(filename => {
+                zip.file(filename, files[filename].content);
+            });
+
+            zip.generateAsync({ type: 'blob' }).then(function(content) {
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(content);
+                a.download = 'code-export.zip';
+                a.click();
+            });
+        });
+
+        // ファイル読み込み
+        document.getElementById('file-input').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const fileName = file.name;
+                let language = 'plaintext';
+                let icon = 'fa-regular fa-file text-gray-400';
+
+                if (fileName.endsWith('.html')) {
+                    language = 'html';
+                    icon = 'fa-brands fa-html5 text-orange-500';
+                } else if (fileName.endsWith('.css')) {
+                    language = 'css';
+                    icon = 'fa-brands fa-css3-alt text-blue-500';
+                } else if (fileName.endsWith('.js')) {
+                    language = 'javascript';
+                    icon = 'fa-brands fa-js text-yellow-400';
+                }
+
+                files[fileName] = {
+                    name: fileName,
+                    language: language,
+                    icon: icon,
+                    content: event.target.result
+                };
+
+                switchFile(fileName);
+                if (window.innerWidth < 768) {
+                    switchMobileView('editor');
+                }
+            };
+            reader.readAsText(file);
+        });
+
+        // テーマ切替
+        document.getElementById('btn-theme').addEventListener('click', () => {
+            isDarkTheme = !isDarkTheme;
+            monaco.editor.setTheme(isDarkTheme ? 'vs-dark' : 'vs');
+        });
+
+        // PC向け リサイズドラッグ処理
+        const resizer = document.getElementById('resizer');
+        const editorSection = document.getElementById('editor-section');
+        const previewSection = document.getElementById('preview-section');
+        const workspace = document.getElementById('workspace');
+
+        let isResizing = false;
+
+        resizer.addEventListener('mousedown', () => {
+            isResizing = true;
+            document.body.style.cursor = 'col-resize';
+            resizer.classList.add('resizing');
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (!isResizing) return;
+
+            const workspaceRect = workspace.getBoundingClientRect();
+            const pointerRelativeX = e.clientX - workspaceRect.left;
+            
+            const minWidth = 150;
+            const maxWidth = workspaceRect.width - minWidth;
+
+            if (pointerRelativeX > minWidth && pointerRelativeX < maxWidth) {
+                const editorWidthPercent = (pointerRelativeX / workspaceRect.width) * 100;
+                editorSection.style.width = `${editorWidthPercent}%`;
+                previewSection.style.width = `${100 - editorWidthPercent}%`;
+                editorSection.style.flex = 'none';
+                previewSection.style.flex = 'none';
+            }
+        });
+
+        document.addEventListener('mouseup', () => {
+            if (isResizing) {
+                isResizing = false;
+                document.body.style.cursor = 'default';
+                resizer.classList.remove('resizing');
+            }
+        });
+
+        // 画面幅が変更された際のスムーズな表示復帰
+        window.addEventListener('resize', () => {
+            if (window.innerWidth >= 768) {
+                const elements = [
+                    document.getElementById('sidebar'),
+                    document.getElementById('editor-section'),
+                    document.getElementById('preview-section'),
+                    document.getElementById('console-section')
+                ];
+                elements.forEach(el => {
+                    el.classList.remove('translate-x-full', 'translate-x-0');
+                });
+            } else {
+                switchMobileView(currentMobileView);
+            }
+        });
+    </script>
+</body>
 </html>
+
