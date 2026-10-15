@@ -89,5 +89,11 @@
     "url": "./todo/",
     "category": "utility",
     "tags": ["シンプル"]
-  }
+  },
+  {
+    "name": "QRコード生成ツール",
+    "description": "リンクやテキストからQRコードを生成",
+    "url": "./qrgenerator",
+    "category": "utility",
+    "tags": ["ツール"]
 ]
