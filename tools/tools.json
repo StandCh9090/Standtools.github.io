@@ -67,7 +67,7 @@
     "description": "VSCodeライクなコードエディター",
     "url": "./web-code/",
     "category": "utility",
-    "tags": ["開発"]
+    "tags": ["開発", "エディター"]
   },
   {
     "name": "飲食店用業務アプリ",
